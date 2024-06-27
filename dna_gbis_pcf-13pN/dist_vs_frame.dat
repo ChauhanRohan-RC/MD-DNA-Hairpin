@@ -1,0 +1,10 @@
+#================  DISTANCE B/W 2 ATOMS  =================
+#LOG: INPUT Structure File: "../common/dna.psf" | Frame File(s): [ "dna_gbis_pcf1.restart.coor" ]
+#LOG: ATOM1 SELECTION: "nucleic and resid 1 and name C5'"
+#LOG: ATOM2 SELECTION: "nucleic and resid 16 and name C3'"
+#--------------------------
+#LOG: Total Frames: 1
+#LOG: START Frame Index: 0 | END Frame Index: 0 | Frames for Calculation: 1
+#--------------------------
+#Frame 	 DIST
+0 	 18.558648170151606

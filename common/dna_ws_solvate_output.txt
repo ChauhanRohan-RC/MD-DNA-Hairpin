@@ -1,0 +1,26 @@
+====================================
+Output Files: dna_ws.psf   dna_ws.pdb
+NOTE: All dimensions are in Å
+NOTE: Sphere COM should be used in most cases
+---------------------------------------------------------------
+Distance of farthest Atom (excluding Water) from COM (Å): 19.060269660480586
+Sphere Padding (Å): 40
+---------------------------------------------------------------
+Sphere Geometric Center: 14.697347640991211 -1.2401806116104126 7.506030082702637
+Sphere Center of Mass (COM): 14.7047119140625 -1.2427393198013306 7.503101348876953
+Sphere Radius (Å): 59.060269660480586
+Sphere Min Coordinate: -45.04399871826172 -60.599998474121094 -52.58100128173828
+Sphere Max Coordinate: 74.60900115966797 58.499000549316406 67.0009994506836
+---------------------------------------------------------------
+============ Copy-Paste For NAMD config file ================
+## Multilevel Summation Method (MSM) Grid Size with Padding 2 Å
+MSMxmin -48.0
+MSMymin -63.0
+MSMzmin -55.0
+MSMxmax 76.0
+MSMymax 60.0
+MSMzmax 69.0
+
+## Spherical Boundary Condition (using COM) (in Å)
+sphericalBCcenter   14.7047119140625 -1.2427393198013306 7.503101348876953
+sphericalBCr1       59.060269660480586

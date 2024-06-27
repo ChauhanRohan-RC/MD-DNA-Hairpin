@@ -1,0 +1,13 @@
+Output Files: dna_wb.psf   dna_wb.pdb
+NOTE: All dimensions are in Angstrom (A)
+---------------------------------------------------
+Geometric Center of All Atoms: 13.226146697998047 -0.6382173299789429 9.997576713562012
+Center of Mass (COM) of All Atoms: 13.2438383102417 -0.6473841071128845 9.96694278717041
+Box Min Coordinate: -22.31800079345703 -30.66699981689453 -24.381000518798828
+Box Max Coordinate: 48.790000915527344 29.159000396728516 44.4119987487793
+---------------------------------------------------
+Copy-Paste For NAMD config file: 
+cellBasisVector1 71.10800170898438 0 0 
+cellBasisVector2 0 59.82600021362305 0 
+cellBasisVector3 0 0 68.79299926757813 
+cellOrigin 13.236000061035156 -0.7539997100830078 10.015499114990234 
