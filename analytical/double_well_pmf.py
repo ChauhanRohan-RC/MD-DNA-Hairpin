@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 
 
 def phi(x: np.ndarray,
-        depth: float,
-        bias: float,
         kb_t: float,
-        ks: float) -> np.ndarray:
+        ks: float,
+        depth: float,
+        bias: float) -> np.ndarray:
     """
     Calculates Φ(A,x) that represents Double-Well Potential.
     It by the linear combination of even and odd solution of Weber equation
@@ -57,10 +57,10 @@ def phi(x: np.ndarray,
 
 
 def double_well_pmf(x: np.ndarray,
-                    depth: float,
-                    bias: float,
                     kb_t: float,
-                    ks: float) -> np.ndarray:
+                    ks: float,
+                    depth: float,
+                    bias: float) -> np.ndarray:
     """
     Helper method for calculating Potential of Mean Force (PMF) from Φ(A,x)
 
@@ -71,19 +71,19 @@ def double_well_pmf(x: np.ndarray,
     """
 
     _phi_ax = phi(x=x,
-                  depth=depth,
-                  bias=bias,
                   kb_t=kb_t,
-                  ks=ks)
+                  ks=ks,
+                  depth=depth,
+                  bias=bias)
 
     return 2 * kb_t * np.log(_phi_ax)
 
 
 def phi_scaled(x: np.ndarray,
-               depth: float,
-               bias: float,
                kb_t: float,
                ks: float,
+               depth: float,
+               bias: float,
                x_offset: float = 0,
                x_scale: float = 1,
                phi_offset: float = 0,
@@ -108,20 +108,20 @@ def phi_scaled(x: np.ndarray,
     x = (x + x_offset) * x_scale
 
     _phi = phi(x=x,
-               depth=depth,
-               bias=bias,
                kb_t=kb_t,
-               ks=ks)
+               ks=ks,
+               depth=depth,
+               bias=bias)
 
     # return scaled output
     return (_phi * phi_scale) + phi_offset
 
 
 def double_well_pmf_scaled(x: np.ndarray,
-                           depth: float,
-                           bias: float,
                            kb_t: float,
                            ks: float,
+                           depth: float,
+                           bias: float,
                            x_offset: float = 0,
                            x_scale: float = 1,
                            phi_offset: float = 0,
@@ -136,10 +136,10 @@ def double_well_pmf_scaled(x: np.ndarray,
     """
 
     _phi_ax = phi_scaled(x=x,
-                         depth=depth,
-                         bias=bias,
                          kb_t=kb_t,
                          ks=ks,
+                         depth=depth,
+                         bias=bias,
                          x_offset=x_offset,
                          x_scale=x_scale,
                          phi_offset=phi_offset,
@@ -160,9 +160,9 @@ def main():
     # Domain (in Å)
     x = np.linspace(10, 30, 100, endpoint=False)  # [start = -1.5, stop = 1] with no scale or offset
 
-    #phi_ax = phi_scaled(x, A, bias, Kb * T, ks, x_scale=1 / 10, x_scaled_offset=-19.8)  # for symmetric bistable potential
+    #phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 10, x_scaled_offset=-19.8)  # for symmetric bistable potential
 
-    phi_ax = phi_scaled(x, A, bias, Kb * T, ks, x_scale=1 / 8, x_offset=-22.4)      # For un-symmetric potential
+    phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 8, x_offset=-22.4)      # For un-symmetric potential
 
     # PMF from Probability Distribution = -KbT ln(Peq(x)) = 2 * KbT * ln(phi(A,x))
     pmf = 2 * Kb * T * np.log(phi_ax)

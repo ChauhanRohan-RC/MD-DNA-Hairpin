@@ -14,7 +14,7 @@ ks = 10  # Force constant (kcal/mol/Å**2)
 # Domain (in Å)
 x = np.linspace(24, 42, 100, endpoint=False)  # [start = -1.5, stop = 1] with no scale or offset
 
-pmf = double_well_pmf_scaled(x, A, bias, Kb * T, ks, x_offset=-32.467214, x_scale=0.198143, phi_offset=0.116308, phi_scale=0.364393)      # For un-symmetric potential
+pmf = double_well_pmf_scaled(x, depth=A, bias=bias, kb_t=Kb * T, ks=ks, x_offset=-32.467214, x_scale=0.198143, phi_offset=0.116308, phi_scale=0.364393)      # For un-symmetric potential
 
 print("\n#X\tPMF")
 for i in range(len(x)):
