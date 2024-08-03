@@ -15,7 +15,7 @@
 set psf_file		"../common/dna.psf";		# input strcuture file (.psf)
 # LIST of trajectory (.dcd) or single frame (.pdb, .coor) files separated by space
 #set frame_files	{ "dna_gbis_pcf1.dcd" "dna_gbis_pcf2.dcd" };		
-set frame_files	{ "dna_gbis_pcf.dcd" "dna_gbis_pcf1.dcd" };
+set frame_files	{ "dna_gbis_pcf.dcd" "dna_gbis_pcf1.dcd" "dna_gbis_pcf2.dcd" };
 
 set selection_atom1	"nucleic and resid 1 and name C5'";		# selection for first atom: SMD
 set selection_atom2	"nucleic and resid 16 and name C3'";	# selection for second atom: FIXED

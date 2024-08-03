@@ -23,7 +23,7 @@ CAL_TO_JOULE = 4.184  # 1 cal = 4.184 J
 K_b = 8.314 / (CAL_TO_JOULE * 1000)  # ideal gas constant in kcal/(mol K)
 
 ## INPUT -----------------------
-extension_pdf_file = "dist_vs_pdf_avg.dat"    # Input Extension vs Probability file i.e Extension Probability
+extension_pdf_file = "dist_pdf.dat"    # Input Extension vs Probability file i.e Extension Probability
 T = 300         # Constant Temp (K)
 
 x_f = 0          # LEFT Absorbing Boundary - Folded state extension (in Å)
@@ -35,7 +35,7 @@ x_u = 100        # RIGHT Absorbing Boundary - Unfolded state extension (in Å)
 negate_app_pmf = True  
 
 ## OUTPUT ----------------------
-output_file = "sp_pmf_avg.csv"
+output_file = "sp_pmf.csv"
 
 ## ----------------------------------
 # Extension Probability Distribution (PDF) DataFrame 

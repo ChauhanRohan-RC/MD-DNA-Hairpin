@@ -1,0 +1,29 @@
+#================ RMSF ==================
+#LOG: INPUT Structure File: "../../common/dna.psf" | Frame File(s): [ "../dna_gbis_eq.dcd" ]
+#LOG: BASE SELECTION: "nucleic"
+#LOG: RESIDUE SELECTION: "nucleic and name C1'"
+#--------------------------
+#LOG: Total Frames: 60000
+#LOG: REFERENCE Frame Index: 0
+#LOG: START Frame Index: 0 | END Frame Index: 59999 | Frames for RMSF: 60000
+#LOG: Selected RESIDUE COUNT: 16
+#----------------------------
+#RESIDUE 	 RMSF
+1 	 5.321966758199311
+2 	 7.1369139711279175
+3 	 9.141775305281667
+4 	 6.375401514395921
+5 	 4.504458542240156
+6 	 5.114318473295822
+7 	 8.437867290161593
+8 	 7.094677472558609
+9 	 6.580459212783322
+10 	 9.86551593376947
+11 	 6.262031927267672
+12 	 5.664622832583464
+13 	 6.3148652177493565
+14 	 6.657045431847672
+15 	 6.923062558071723
+16 	 6.86266133435182
+#----------------------------
+#INFO: Average RMSF per residue : 6.766102735980343

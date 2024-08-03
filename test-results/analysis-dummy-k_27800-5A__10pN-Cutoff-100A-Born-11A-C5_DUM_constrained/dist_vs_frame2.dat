@@ -1,0 +1,10 @@
+#================  DISTANCE B/W 2 ATOMS  =================
+#LOG: INPUT Structure File: "dna_dummy.psf" | Frame File(s): [ "dna_gbis_pcf.restart.coor" ]
+#LOG: ATOM1 SELECTION: "resid 1 and name C5'"
+#LOG: ATOM2 SELECTION: "resid 1 and name DUM"
+#--------------------------
+#LOG: Total Frames: 1
+#LOG: START Frame Index: 0 | END Frame Index: 0 | Frames for Calculation: 1
+#--------------------------
+#Frame 	 DIST
+0 	 4.927843596940341
