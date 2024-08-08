@@ -1,4 +1,3 @@
-import math
 import numpy as np
 import scipy as sp
 import pandas as pd
@@ -37,9 +36,9 @@ def main():
     fit_init_bias = 0.01  # Initial BIAS param for Double-Well fit
 
     # OUTPUT -----------------------------------------------
-    output_params_file = "fit_params-1.txt"  # (optional) Optimized Fit params
-    output_covar_file = "fit_covariances-1.txt"  # (optional) Covariance Matrix of Fit-params
-    output_fig_file = "fit-1.svg"  # (optional) save fit plot
+    output_params_file = "results-double_well_fit/fit_params-1.txt"  # (optional) Optimized Fit params
+    output_covar_file = "results-double_well_fit/fit_covariances-1.txt"  # (optional) Covariance Matrix of Fit-params
+    output_fig_file = "results-double_well_fit/fit-1.svg"  # (optional) save fit plot
 
     # -----------------------------------------------------------------------------------
 
@@ -169,18 +168,19 @@ def load_double_well_pmf_func(fit_param_file, kb_t: float, ks: float):
     return lambda x: double_well_pmf_scaled(x, kb_t, ks, *_fit_params)
 
 
-def test_load_double_well_pmf_func():
-    func = load_double_well_pmf_func("fit_params-2.2.txt", 1.9872036e-3 * 300, 10)
+def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float, x_start: float, x_stop: float,
+                                 sample_count: int, output_sample_file: str):
+    func = load_double_well_pmf_func(fit_param_file, kb_t=kb_t, ks=ks)
 
-    x = np.linspace(24, 41, 200)
+    x = np.linspace(x_start, x_stop, sample_count, endpoint=True)
     y = func(x)
 
-    # df = pd.DataFrame({
-    #     "#X": x,
-    #     "PMF_FIT": y
-    # })
-    #
-    # df.to_csv("fit_samples-1.dat", sep="\t", header=True, index=False, index_label=False)
+    df = pd.DataFrame({
+        "#X": x,
+        "PMF_FIT": y
+    })
+
+    df.to_csv(output_sample_file, sep="\t", header=True, index=False, index_label=False)
 
     plt.plot(x, y)
     plt.show()
@@ -189,4 +189,7 @@ def test_load_double_well_pmf_func():
 if __name__ == '__main__':
     # main()
 
-    test_load_double_well_pmf_func()
+    samplify_double_well_pmf_fit("results-double_well_fit/fit_params-2.2.txt",
+                                 1.9872036e-3 * 300, 10,
+                                 24, 41, 200,
+                                 "results-double_well_fit/fit_samples-2.2.dat")

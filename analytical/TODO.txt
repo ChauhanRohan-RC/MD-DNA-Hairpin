@@ -1,0 +1,8 @@
+1. Add the running-integration within "sp" and "sp_final_eq" functions itself
+
+2. use "phi_offset" and "phi_scale" to reconcile barrier height with simulations
+    -> sp_final_eq gives better pmf_re
+    -> PMF scale and offset are VERY important
+    -> x_offset and x_scale are not that important (cab be done easily)
+
+3. REPEAT for the second barrier (I-U)

@@ -12,11 +12,11 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 """
 CORE IMPLEMENTATION of Splitting Probability from the ground up
 
-1. conditional probability:  P(x,t | x0,t0)
-2. conditional probability integral w.r.t to x at given t, x0, t0
-3. First Passage Time Distribution:  FPT(x0, t)
-4. Splitting probability from FPT:  Sp(x0) = time_integral(FPT(x0, t))
-
+1. cond_prob -> conditional probability  P(x,t | x0,t0)
+2. cond_prob_int_x -> conditional probability integral w.r.t to x at given t, x0, t0
+3. fpt -> First Passage Time Distribution FPT(x0, t)
+4. sp -> Splitting probability as 0th moment FPT:  Sp(x0) = time_integral(FPT(x0, t))
+5. sp_final_eq -> Splitting probability from final Equation [NO INTEGRALS OR CALCULUS]
 
 NOTE: functions ending with "vec" are vectorized versions of corresponding functions.
       They accept array of inputs, and compute the base function at each input in a for-loop
@@ -51,27 +51,6 @@ def dn(x: np.ndarray | float, n: int, a: float, hermite_monic=True) -> np.ndarra
 
 def kn(n: int, depth: float, ks: float, friction_coeff: float) -> float:
     return (n + depth + 0.5) * ks / friction_coeff
-
-
-# Internal Phi(A, x)
-# def phi(x: np.ndarray | float):
-#     return phi(x=x, kb_t=KbT, ks=Ks,
-#                       depth=depth, bias=bias)
-
-
-# def phi_sc(x: np.ndarray | float,
-#            kb_t: float,
-#            ks: float,
-#            depth: float,
-#            bias: float,
-#            x_offset: float = 0,
-#            x_scale: float = 1,
-#            phi_offset: float = 0,
-#            phi_scale: float = 1) -> np.ndarray | float:
-#     return phi_scaled(x=x, kb_t=kb_t, ks=ks,
-#                       depth=depth, bias=bias,
-#                       x_offset=x_offset, x_scale=x_scale,
-#                       phi_offset=phi_offset, phi_scale=phi_scale)
 
 
 def dn_by_phi(x: np.ndarray | float, n: int, dn_a: float,
@@ -289,6 +268,8 @@ def first_pass_time_vec(x0: np.ndarray | float,
                 phi_offset=phi_offset, phi_scale=phi_scale)
 
 
+# Splitting probability as the 0th moment of first_passage_time
+# (uses defining integral equations)
 def sp(x0: float, t0: float,
        t_start: float, t_stop: float, t_samples: int,
        x_a: float, x_b: float, x_samples: int,
@@ -338,6 +319,86 @@ def sp_vec(x0: np.ndarray | float,
                 depth=depth, bias=bias,
                 x_offset=x_offset, x_scale=x_scale,
                 phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+# Splitting probability from final equation
+def sp_final_eq(x0: float,
+                x_a: float, x_b: float,
+                n_max: int,
+                cyl_dn_a: float,
+                kb_t: float,
+                ks: float,
+                friction_coeff: float,
+                depth: float,
+                bias: float,
+                x_offset: float = 0,
+                x_scale: float = 1,
+                phi_offset: float = 0,
+                phi_scale: float = 1) -> np.float128:
+    def _phi(_x: np.ndarray | float):
+        return phi_scaled(_x, kb_t=kb_t, ks=ks,
+                          depth=depth, bias=bias,
+                          x_offset=x_offset, x_scale=x_scale,
+                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+    _d1 = kb_t / friction_coeff
+    _pre_c: float = _d1 * math.sqrt(ks / (kb_t * 2 * math.pi))
+    _phi_x = _phi(x0)
+
+    _pre = _pre_c * _phi_x * _phi_x
+
+    def _cal_summand(_n: int, inv_fact: float) -> float:
+        __dn_by_phi_func = dn_by_phi_func(n=_n, dn_a=cyl_dn_a,
+                                          kb_t=kb_t, ks=ks,
+                                          depth=depth, bias=bias,
+                                          x_offset=x_offset, x_scale=x_scale,
+                                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+        __der = scipy.misc.derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
+        __c = __dn_by_phi_func(x_b) - __dn_by_phi_func(x_a)
+        __integral = 1 / kn(n=_n, depth=depth, ks=ks, friction_coeff=friction_coeff)
+
+        return inv_fact * __der * __c * __integral
+
+    _sum = np.float128(0)
+
+    # first term (n = 0)
+    _sum += _cal_summand(0, 1)
+
+    # Rest terms (n > 1)
+    inv_factorial: float = 1.0
+    for n in range(1, n_max):
+        inv_factorial /= n
+        _sum += _cal_summand(n, inv_factorial)
+
+    return _pre * _sum
+
+
+def sp_final_eq_vec(x0: np.ndarray | float,
+                    x_a: np.ndarray | float, x_b: np.ndarray | float,
+                    n_max: np.ndarray | int,
+                    cyl_dn_a: np.ndarray | float,
+                    kb_t: np.ndarray | float,
+                    ks: np.ndarray | float,
+                    friction_coeff: np.ndarray | float,
+                    depth: np.ndarray | float,
+                    bias: np.ndarray | float,
+                    x_offset: np.ndarray | float = 0,
+                    x_scale: np.ndarray | float = 1,
+                    phi_offset: np.ndarray | float = 0,
+                    phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
+    _vec = np.vectorize(sp_final_eq, otypes=[np.float128])
+    return _vec(x0=x0,
+                x_a=x_a, x_b=x_b,
+                n_max=n_max, cyl_dn_a=cyl_dn_a,
+                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                depth=depth, bias=bias,
+                x_offset=x_offset, x_scale=x_scale,
+                phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+# Multiprocessing
+
 
 
 def test():
