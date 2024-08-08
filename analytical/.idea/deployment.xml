@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="rohanchauhan@10.12.2.152:22 agent" createEmptyFolders="true" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="rohanchauhan@10.12.2.152:22 agent">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/rohanchauhan/Projects/MD/dna-hairpin/analytical" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

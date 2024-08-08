@@ -4,7 +4,7 @@ import scipy as sp
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from double_well_pmf import double_well_pmf_scaled
+from double_well_pmf import double_well_pmf_scaled, phi_scaled
 
 comment_token = "#"
 
@@ -154,24 +154,33 @@ def main():
     plt.show()
 
 
-def load_double_well_pmf_func(fit_param_file, kb_t: float, ks: float):
-    _param_df = pd.read_csv(fit_param_file, comment=comment_token, sep=r"\s+")
+def load_fit_params(fit_param_file) -> np.ndarray:
+    _param_df: pd.DataFrame = pd.read_csv(fit_param_file, comment=comment_token, sep=r"\s+")
+    return _param_df[COL_NAME_PARAM_VALUE].values
 
-    return lambda x: double_well_pmf_scaled(x, kb_t, ks, *_param_df[COL_NAME_PARAM_VALUE].values)
+
+def load_double_well_phi_func(fit_param_file, kb_t: float, ks: float):
+    _fit_params = load_fit_params(fit_param_file)
+    return lambda x: phi_scaled(x, kb_t, ks, *_fit_params)
+
+
+def load_double_well_pmf_func(fit_param_file, kb_t: float, ks: float):
+    _fit_params = load_fit_params(fit_param_file)
+    return lambda x: double_well_pmf_scaled(x, kb_t, ks, *_fit_params)
 
 
 def test_load_double_well_pmf_func():
     func = load_double_well_pmf_func("fit_params-2.2.txt", 1.9872036e-3 * 300, 10)
 
-    x = np.linspace(25, 40.5, 200)
+    x = np.linspace(24, 41, 200)
     y = func(x)
 
-    df = pd.DataFrame({
-        "#X": x,
-        "PMF_FIT": y
-    })
-
-    df.to_csv("fit_samples-2.2.dat", sep="\t", header=True, index=False, index_label=False)
+    # df = pd.DataFrame({
+    #     "#X": x,
+    #     "PMF_FIT": y
+    # })
+    #
+    # df.to_csv("fit_samples-1.dat", sep="\t", header=True, index=False, index_label=False)
 
     plt.plot(x, y)
     plt.show()
