@@ -8,20 +8,18 @@ print(f"Cores: {mp.cpu_count()}")
 
 a = 100
 
-def worker(x):
-
-    return np.log(x)
+def worker(x, y):
+    return x + y
 
 def main():
 
-    inputs = [list(range(i, i + 20)) for i in range(1, 100, 20)]
+    inputs = [{"x": i, "y": 1} for i in range(1, 10)]
 
-    pool = mp.Pool(processes=mp.cpu_count())
-    res = pool.map(worker, inputs)
+    with mp.Pool(mp.cpu_count() - 1) as pool:
+        res = pool.starmap(worker, inputs)
 
     print(type(res))
     print(res)
-    np.savetxt("test2.txt", res)
 
 
 if __name__ == '__main__':

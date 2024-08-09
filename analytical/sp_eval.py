@@ -1,15 +1,15 @@
-import time
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
 
 import scipy
+from matplotlib.figure import figaspect
 
 import sp_impl
 from double_well_pmf import phi_scaled
 from double_well_pmf_fit import load_fit_params
+from sp_impl import mp_execute
 
 """
 Script to Evaluate quantities implemented in "sp_impl.py" 
@@ -23,9 +23,10 @@ KbT = Kb * T  # kcal/mol
 Ks = 10  # Force constant (kcal/mol/Å**2)
 
 # PARAMS
-x_a = -1.00  # LEFT Boundary (Å)
-x_b = 0.87  # RIGHT Boundary (Å)
+x_a = -1.0  # LEFT Boundary (Å) -1.0
+x_b = 0.87  # RIGHT Boundary (Å) 0.87
 x_integration_samples = 100
+x_integration_samples_sp_final_eq = 100000
 
 t_0 = 0
 x_0 = x_a
@@ -94,57 +95,55 @@ def _first_pass_time_vec(x0: np.ndarray | float, t0: np.ndarray | float, t: np.n
                                        phi_offset=phi_offset, phi_scale=phi_scale)
 
 
-def _sp_vec(x0: np.ndarray | float, t0: np.ndarray | float):
-    return sp_impl.sp_vec(x0=x0, t0=t0,
-                          t_start=t_integration_start, t_stop=t_integration_stop, t_samples=t_integration_samples,
-                          x_a=x_a, x_b=x_b, x_samples=x_integration_samples,
-                          n_max=n_max, cyl_dn_a=cyl_dn_a,
-                          kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                          depth=depth, bias=bias,
-                          x_offset=x_offset, x_scale=x_scale,
-                          phi_offset=phi_offset, phi_scale=phi_scale)
+def _sp_first_principle(x_a: float = x_a, x_b: float = x_b,
+                        x_integration_samples: int = x_integration_samples_sp_final_eq,
+                        process_count: int = mp.cpu_count() - 1,
+                        return_integrand: bool = True):
+    return sp_impl.sp_first_principle(x_a=x_a, x_b=x_b, x_integration_samples=x_integration_samples,
+                                      t0=t_0, t_start=t_integration_start, t_stop=t_integration_stop,
+                                      t_samples=t_integration_samples,
+                                      process_count=process_count,
+                                      return_integrand=return_integrand,
+                                      n_max=n_max, cyl_dn_a=cyl_dn_a,
+                                      kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
+                                      depth=depth, bias=bias,
+                                      x_offset=x_offset, x_scale=x_scale,
+                                      phi_offset=phi_offset, phi_scale=phi_scale)
 
 
-def _sp_final_eq_vec(x0: np.ndarray | float):
-    return sp_impl.sp_final_eq_vec(x0=x0,
-                                   x_a=x_a, x_b=x_b,
-                                   n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                   kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                                   depth=depth, bias=bias,
-                                   x_offset=x_offset, x_scale=x_scale,
-                                   phi_offset=phi_offset, phi_scale=phi_scale)
+def _sp_final_eq(x_a: float = x_a, x_b: float = x_b,
+                 x_integration_samples: int = x_integration_samples_sp_final_eq,
+                 process_count: int = mp.cpu_count() - 1,
+                 return_integrand: bool = True):
+    return sp_impl.sp_final_eq(x_a=x_a, x_b=x_b,
+                               x_integration_samples=x_integration_samples,
+                               process_count=process_count,
+                               return_integrand=return_integrand,
+                               n_max=n_max, cyl_dn_a=cyl_dn_a,
+                               kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
+                               depth=depth, bias=bias,
+                               x_offset=x_offset, x_scale=x_scale,
+                               phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+# def _sp_final_eq_vec(x0: np.ndarray | float):
+#     return sp_impl.sp_final_eq_vec(x0=x0,
+#                                    x_a=x_a, x_b=x_b,
+#                                    n_max=n_max, cyl_dn_a=cyl_dn_a,
+#                                    kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
+#                                    depth=depth, bias=bias,
+#                                    x_offset=x_offset, x_scale=x_scale,
+#                                    phi_offset=phi_offset, phi_scale=phi_scale)
 
 
 # MAIN -----------------------------------------------------------------------------
-
-def mp_execute(worker_func, input_arr: np.ndarray, process_count: int) -> np.ndarray:
-    sample_count = len(input_arr)
-
-    q, r = divmod(sample_count, process_count)
-    chunk_size = q if r == 0 else q + 1
-
-    print(f"Computing in Multiprocess Mode"
-          f"\n Target Function: {worker_func.__name__}"
-          f"\n -> Total CPU(s): {mp.cpu_count()} | Req Processes: {process_count}"
-          f"\n -> Total Sample: {sample_count} | Samples per Process: {chunk_size}")
-
-    time_start = time.time()
-
-    chunks = [input_arr[i: min(i + chunk_size, sample_count)] for i in range(0, sample_count, chunk_size)]
-
-    pool = mp.Pool(processes=process_count)
-    res = pool.map(worker_func, chunks)
-
-    time_end = time.time()
-
-    print(f"Time taken: {time_end - time_start:.2f} s")
-    return np.concatenate(res)
 
 def cond_prob_integral_x_vs_x0_worker(x0: np.ndarray | float):
     return _cond_prob_integral_x_vec(x0=x0, t0=t_0, t=time_instant_test)
 
 
-def test_cond_prob_integral_x_vs_x0():
+def cal_cond_prob_integral_x_vs_x0(out_data_file="results-sp_first_princ/cond_prob_int_x_vs_x0.csv",
+                                   out_fig_file="results-sp_first_princ/cond_prob_int_x_vs_x0.pdf"):
     x0 = np.linspace(x_a, x_b, 100, endpoint=True)
     y = mp_execute(cond_prob_integral_x_vs_x0_worker, x0, mp.cpu_count() - 1)
 
@@ -153,15 +152,17 @@ def test_cond_prob_integral_x_vs_x0():
         "CP_INT_X": y
     })
 
-    df.to_csv("results-sp_eval/sp_eval-cond_prob_int_x_vs_x0.csv", sep="\t", header=True, index=False,
-              index_label=False)
+    if out_data_file:
+        df.to_csv(out_data_file, sep="\t", header=True, index=False,
+                  index_label=False)
 
     plt.plot(x0, y, label=f"t: {time_instant_test} s")
     plt.xlabel("X0")
     plt.ylabel("CP_INTx(x0, t0, t)")
 
     plt.legend(loc="upper right")
-    plt.savefig("results-sp_eval/sp_eval-cond_prob_int_x_vs_x0.svg")
+    if out_fig_file:
+        plt.savefig(out_fig_file)
     plt.show()
 
 
@@ -169,7 +170,8 @@ def cond_prob_integral_x_vs_t_worker(t: np.ndarray | float):
     return _cond_prob_integral_x_vec(x0=x_0, t0=t_0, t=t)
 
 
-def test_cond_prob_integral_x_vs_t():
+def cal_cond_prob_integral_x_vs_t(out_data_file="results-sp_first_princ/cond_prob_int_x_vs_t.csv",
+                                  out_fig_file="results-sp_first_princ/cond_prob_int_x_vs_t.pdf"):
     t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
     y = mp_execute(cond_prob_integral_x_vs_t_worker, t_arr, mp.cpu_count() - 1)
 
@@ -178,14 +180,16 @@ def test_cond_prob_integral_x_vs_t():
         "CP_INT_X": y
     })
 
-    df.to_csv("results-sp_eval/sp_eval-cond_prob_int_x_vs_t.csv", sep="\t", header=True, index=False, index_label=False)
+    if out_data_file:
+        df.to_csv(out_data_file, sep="\t", header=True, index=False, index_label=False)
 
     plt.plot(t_arr, y, label=f"x0: {x_0} A | t0: {t_0} s")
     plt.xlabel("t (s)")
     plt.ylabel("CP_INTx(x0, t0, t)")
 
     plt.legend(loc="upper right")
-    plt.savefig("results-sp_eval/sp_eval-cond_prob_int_x_vs_t.svg")
+    if out_fig_file:
+        plt.savefig(out_fig_file)
     plt.show()
 
 
@@ -193,7 +197,9 @@ def fpt_worker(t: np.ndarray):
     return _first_pass_time_vec(x0=x_0, t0=t_0, t=t)
 
 
-def test_fpt():
+# First passage time
+def cal_fpt(out_data_file="results-sp_first_princ/fpt_vs_t.csv",
+            out_fig_file="results-sp_first_princ/fpt_vs_t.pdf"):
     # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
 
     t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
@@ -204,97 +210,85 @@ def test_fpt():
         "FPT": y
     })
 
-    df.to_csv("results-sp_eval/sp_eval-fpt.csv", sep="\t", header=True, index=False, index_label=False)
+    if out_data_file:
+        df.to_csv(out_data_file, sep="\t", header=True, index=False, index_label=False)
 
     plt.plot(t_arr, y, label="FPT vs t")
     plt.xlabel("Time (s)")
     plt.ylabel("First Passage Time FPT(t)")
 
     plt.legend(loc="upper right")
-    plt.savefig("results-sp_eval/sp_eval-fpt.svg")
+    if out_fig_file:
+        plt.savefig(out_fig_file)
     plt.show()
 
 
-def sp_worker(x0: np.ndarray):
-    return _sp_vec(x0=x0, t0=t_0)
-
-
-def test_sp():
-    x0 = np.linspace(x_a, x_b, 100, endpoint=True)
-    y = mp_execute(sp_worker, x0, mp.cpu_count() - 1)
+def __handle_sp_data(x0: np.ndarray, sp_integrand: np.ndarray | None, sp: np.ndarray,
+                     sp_plot_title: str, pmf_plot_title: str,
+                     out_data_file, out_fig_file):
+    pmf_im = _pmf(x0)  # Imposed PMF
+    pmf_re = sp_impl.pmf_re(x=x0, sp=sp, kb_t=KbT)  # Reconstructed PMF
 
     df = pd.DataFrame({
         "X0": x0,
-        "SP": y
+        "PMF_IM": pmf_im
     })
 
-    df.to_csv("results-sp_eval/sp_eval-sp.csv", sep="\t", header=True, index=False, index_label=False)
+    if sp_integrand is not None:
+        df["SP_INTEGRAND"] = sp_integrand
 
-    plt.plot(x0, y, label=f"SP at t0={t_0} s")
-    plt.xlabel("X0 (A)")
-    plt.ylabel("SP(x0)")
-
-    plt.legend(loc="upper right")
-    plt.savefig("results-sp_eval/sp_eval-sp.svg")
-    plt.show()
-
-
-def sp_final_eq_worker(x0: np.ndarray):
-    return _sp_final_eq_vec(x0=x0)
-
-
-def test_sp_final_eq():
-    x0 = np.linspace(x_a, x_b, 100, endpoint=True)
-    y = mp_execute(sp_final_eq_worker, x0, mp.cpu_count() - 1)
-
-    df = pd.DataFrame({
-        "X0": x0,
-        "SP": y
-    })
-
-    df.to_csv("results-sp_final_eq/sp_eval-sp_final_eq.csv", sep="\t", header=True, index=False, index_label=False)
-
-    plt.plot(x0, y, label=f"SP Final Eq")
-    plt.xlabel("X0 (A)")
-    plt.ylabel("SP(x0)")
-
-    plt.legend(loc="upper right")
-    plt.savefig("results-sp_final_eq/sp_eval-sp_final_eq.svg")
-    plt.show()
-
-
-def test_sp_integral__pmf_re(sp_vs_x_file, output_data_file, output_sp_fig_file):
-    df = pd.read_csv(sp_vs_x_file, sep=r"\s+", comment="#")
-    x = df["X0"]
-    y = df["SP"]
-
-    y -= np.min(y)
-
-    # Integral in the denominator = Constant
-    c = scipy.integrate.trapezoid(y=y, x=x)
-
-    y2 = np.zeros(len(x), dtype=np.float128)
-
-    for i in range(len(x)):
-        _v = scipy.integrate.trapezoid(y=y[i:], x=x[i:])
-        y2[i] = _v / c
-
-    df["SP_INT"] = y2
-    grad: np.ndarray = np.gradient(y2, x)
-    print(f"IS SP gradient +ve: {(grad > 0).sum()}")
-
-    # pmf_re = -grad
-    pmf_re = KbT * np.log(-grad)
+    df["SP"] = sp
     df["PMF_RE"] = pmf_re
 
-    df.to_csv(output_data_file, sep="\t", header=True, index=False, index_label=False)
+    if out_data_file:
+        df.to_csv(out_data_file, sep="\t", header=True, index=False, index_label=False)
 
-    plt.plot(x, y2, label="SP_INT")
+    w, h = figaspect(9 / 17)
+    fig, axes = plt.subplots(1, 2, figsize=(w * 1.4, h * 1.4))
+    fig.tight_layout(pad=5.0)
+
+    # axes[0].plot(x, sp_integrand, label=f"SP INTEGRAND")
+    axes[0].plot(x0, sp, label=f"SP")
+    axes[0].set_title(sp_plot_title)
+    axes[0].set_xlabel("x0 (Å)")
+    axes[0].set_ylabel("Sp(x0)")
+
+    axes[1].plot(x0, pmf_im, label=f"PMF IMPOSED")
+    axes[1].plot(x0, pmf_re, label=f"PMF RECONS")
+    axes[1].set_title(pmf_plot_title)
+    axes[1].set_xlabel("x0 (Å)")
+    axes[1].set_ylabel("PMF(x0) (kcal/mol)")
+
     plt.legend(loc="upper right")
-
-    if output_sp_fig_file:
-        plt.savefig(output_sp_fig_file)
+    if out_fig_file:
+        plt.savefig(out_fig_file)
     plt.show()
+
+
+def cal_sp_first_principle(out_data_file="results-sp_first_princ/sp_first_princ.csv",
+                           out_fig_file="results-sp_first_princ/sp_first_princ.pdf"):
+    x, sp_integrand, sp = _sp_first_principle(x_a=x_a, x_b=x_b,
+                                              x_integration_samples=x_integration_samples,
+                                              process_count=mp.cpu_count() - 1,
+                                              return_integrand=True)
+
+    __handle_sp_data(x0=x, sp_integrand=sp_integrand, sp=sp,
+                     sp_plot_title="Sp(x) Theoretical First-Principle",
+                     pmf_plot_title="PMF Theoretical First-Principle",
+                     out_data_file=out_data_file, out_fig_file=out_fig_file)
+
+
+def cal_sp_final_eq(out_data_file="results-sp_final_eq/sp_final_eq.csv",
+                    out_fig_file="results-sp_final_eq/sp_final_eq.pdf"):
+    x, sp_integrand, sp = _sp_final_eq(x_a=x_a, x_b=x_b,
+                                       x_integration_samples=x_integration_samples_sp_final_eq,
+                                       process_count=mp.cpu_count() - 1,
+                                       return_integrand=True)
+
+    __handle_sp_data(x0=x, sp_integrand=sp_integrand, sp=sp,
+                     sp_plot_title="Sp(x) Theoretical Final-Eq (EXACT)",
+                     pmf_plot_title="PMF Theoretical Final-Eq (EXACT)",
+                     out_data_file=out_data_file, out_fig_file=out_fig_file)
 
 
 def plot_pmf_re(pmf_vs_x_dat_file, output_fig_file):
@@ -312,42 +306,28 @@ def plot_pmf_re(pmf_vs_x_dat_file, output_fig_file):
     plt.show()
 
 
-def test_local():
+def plot_pmf():
     x = np.linspace(x_a, x_b, 100, endpoint=True)
 
-    # y = _pmf(x)
-    # plt.plot(x, y, label="PMF")
+    y = _pmf(x)
+    plt.plot(x, y, label="PMF")
 
-    y = _cond_prob_vec(x, t=time_instant_test, x0=x_0, t0=t_0)
-
-    plt.plot(x, y, label=f"t: {time_instant_test} s, x0: {x_0} A, t0: {t_0} s")
-    plt.xlabel("x (A)")
-    plt.ylabel("P(x, t, x0, t0)")
-
-    plt.legend(loc="upper right")
-    plt.savefig("results-sp_eval/sp_eval-cond_prob.svg")
+    # y = _cond_prob_vec(x, t=time_instant_test, x0=x_0, t0=t_0)
+    #
+    # plt.plot(x, y, label=f"t: {time_instant_test} s, x0: {x_0} A, t0: {t_0} s")
+    # plt.xlabel("x (A)")
+    # plt.ylabel("P(x, t, x0, t0)")
+    #
+    # plt.legend(loc="upper right")
     plt.show()
 
 
 if __name__ == '__main__':
-    # test_local()
-    # test_cond_prob_integral_x_vs_x0()
-    # test_cond_prob_integral_x_vs_t()
-    # test_fpt()
-    # test_sp()
+    # plot_pmf()
 
-    test_sp_final_eq()
+    # cal_cond_prob_integral_x_vs_x0()
+    # cal_cond_prob_integral_x_vs_t()
+    # cal_fpt()
+    # cal_sp_first_principle()
 
-    # test_sp_integral__pmf_re("results-sp_eval/sp_eval-sp.csv",
-    #                          "results-sp_eval/sp_eval-sp.csv",
-    #                          "results-sp_eval/sp_eval-sp_integral.pdf")
-
-    # test_sp_integral__pmf_re("results-sp_final_eq/sp_eval-sp_final_eq.csv",
-    #                          "results-sp_final_eq/sp_eval-sp_final_eq.csv",
-    #                          "results-sp_final_eq/sp_eval-sp_final_eq.pdf")
-
-    # plot_pmf_re("results-sp_eval/sp_eval-sp.csv",
-    #             "results-sp_eval/sp_eval-pmf_re.pdf")
-
-    # plot_pmf_re("results-sp_final_eq/sp_eval-sp_final_eq.csv",
-    #             "results-sp_final_eq/sp_eval-pmf_re.pdf")
+    cal_sp_final_eq()
