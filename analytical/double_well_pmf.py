@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import scipy as sp
+import scipy
 import matplotlib.pyplot as plt
 
 
@@ -41,11 +41,11 @@ def phi(x: np.ndarray,
     _x_hyper = _hyper1f1_coeff * _xsq
 
     # Odd solution of weber equation
-    _y1: np.ndarray = sp.special.hyp1f1((depth / 2) + 0.25, 0.5, _x_hyper)
+    _y1: np.ndarray = scipy.special.hyp1f1((depth / 2) + 0.25, 0.5, _x_hyper)
 
     if bias != 0:
         # Even solution of weber equation
-        _y2: np.ndarray = bias * math.sqrt(ks / kb_t) * x * sp.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
+        _y2: np.ndarray = bias * math.sqrt(ks / kb_t) * x * scipy.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
     else:
         _y2: np.ndarray = np.zeros(len(x))
 
@@ -114,7 +114,7 @@ def phi_scaled(x: np.ndarray,
                bias=bias)
 
     # return scaled output
-    return (_phi * phi_scale) + phi_offset
+    return (_phi + phi_offset) * phi_scale
 
 
 def double_well_pmf_scaled(x: np.ndarray,
@@ -148,6 +148,43 @@ def double_well_pmf_scaled(x: np.ndarray,
     return 2 * kb_t * np.log(_phi_ax)
 
 
+def minimize_func(func, x_start: float, x_stop: float):
+    """
+    Minimizes the given function within (x_start, x_stop)
+    Returns the minima_x and value at minima as a tuple (min_x, func(min_x))
+    """
+    opt_res = scipy.optimize.minimize_scalar(func, method="bounded", bounds=(x_start, x_stop))
+    return opt_res.x, opt_res.fun
+
+
+def minimize_double_well_pmf(x_start: float, x_stop: float,
+                             kb_t: float,
+                             ks: float,
+                             depth: float,
+                             bias: float,
+                             x_offset: float = 0,
+                             x_scale: float = 1,
+                             phi_offset: float = 0,
+                             phi_scale: float = 1):
+    """
+    Minimizes double-well pmf within (x_start, x_stop)
+    Returns the minima_x and pmf at minima as a tuple (min_x, min_pmf)
+    """
+
+    def _func(x):
+        return double_well_pmf_scaled(x=x,
+                                      kb_t=kb_t,
+                                      ks=ks,
+                                      depth=depth,
+                                      bias=bias,
+                                      x_offset=x_offset,
+                                      x_scale=x_scale,
+                                      phi_offset=phi_offset,
+                                      phi_scale=phi_scale)
+
+    return minimize_func(_func, x_start=x_start, x_stop=x_stop)
+
+
 def main():
     Kb = 1.9872036e-3  # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10-3)
 
@@ -160,9 +197,10 @@ def main():
     # Domain (in Å)
     x = np.linspace(10, 30, 100, endpoint=False)  # [start = -1.5, stop = 1] with no scale or offset
 
-    #phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 10, x_scaled_offset=-19.8)  # for symmetric bistable potential
+    # phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 10, x_scaled_offset=-19.8)  # for symmetric bistable potential
 
-    phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 8, x_offset=-22.4)      # For un-symmetric potential
+    phi_ax = phi_scaled(x, kb_t=Kb * T, ks=ks, depth=A, bias=bias, x_scale=1 / 8,
+                        x_offset=-22.4)  # For un-symmetric potential
 
     # PMF from Probability Distribution = -KbT ln(Peq(x)) = 2 * KbT * ln(phi(A,x))
     pmf = 2 * Kb * T * np.log(phi_ax)

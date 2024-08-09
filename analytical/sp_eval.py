@@ -1,9 +1,8 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 import multiprocessing as mp
 
-import scipy
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from matplotlib.figure import figaspect
 
 import sp_impl
@@ -22,11 +21,20 @@ KbT = Kb * T  # kcal/mol
 
 Ks = 10  # Force constant (kcal/mol/Å**2)
 
-# PARAMS
-x_a = -1.0  # LEFT Boundary (Å) -1.0
-x_b = 0.87  # RIGHT Boundary (Å) 0.87
+# PARAMS -------------------
+# NOTE: Optimal x_a and x_b
+# -> Without any offset and scales:
+#       x_a = -1.0, x_b = 0.87
+# -> With T4-DNA hairpin first_double_well "fit-params-1.txt"
+#      minima  14.963448853268662, 24.210883674081007
+#      x_a = 15.08, x_b = 24.24   or
+# -> With T4-DNA hairpin second_double_well "fit-params-2.2.txt"
+#      minima 26.637210420334856, 38.45796438483576
+
+x_a = 14.97  # LEFT Boundary (Å) -1.0
+x_b = 24.20 # RIGHT Boundary (Å) 0.87
 x_integration_samples = 100
-x_integration_samples_sp_final_eq = 100000
+x_integration_samples_sp_final_eq = 10000
 
 t_0 = 0
 x_0 = x_a
@@ -48,8 +56,10 @@ fit_params_file = "results-double_well_fit/fit_params-1.txt"
 pmf_fit_params = load_fit_params(fit_params_file)
 depth, bias, x_offset, x_scale, phi_offset, phi_scale = pmf_fit_params
 
-# NOT USING OFFSETS FOR NOW
-x_offset, x_scale, phi_offset, phi_scale = 0, 1, 0, 1
+
+## NOT USING OFFSETS FOR NOW
+# x_offset, x_scale  = 0, 1
+# phi_offset, phi_scale = 0, 1
 
 
 ## Wrappers -----------------------------------------------------------------
@@ -121,6 +131,20 @@ def _sp_final_eq(x_a: float = x_a, x_b: float = x_b,
                                return_integrand=return_integrand,
                                n_max=n_max, cyl_dn_a=cyl_dn_a,
                                kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
+                               depth=depth, bias=bias,
+                               x_offset=x_offset, x_scale=x_scale,
+                               phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+def _sp_apparent(x_a: float = x_a, x_b: float = x_b,
+                 x_integration_samples: int = x_integration_samples_sp_final_eq,
+                 process_count: int = mp.cpu_count() - 1,
+                 return_integrand: bool = True):
+    return sp_impl.sp_apparent(x_a=x_a, x_b=x_b,
+                               x_integration_samples=x_integration_samples,
+                               process_count=process_count,
+                               return_integrand=return_integrand,
+                               kb_t=KbT, ks=Ks,
                                depth=depth, bias=bias,
                                x_offset=x_offset, x_scale=x_scale,
                                phi_offset=phi_offset, phi_scale=phi_scale)
@@ -248,18 +272,20 @@ def __handle_sp_data(x0: np.ndarray, sp_integrand: np.ndarray | None, sp: np.nda
     fig.tight_layout(pad=5.0)
 
     # axes[0].plot(x, sp_integrand, label=f"SP INTEGRAND")
+    axes[0].plot(x0, sp_integrand, label=f"SP-INTEGRAND")
     axes[0].plot(x0, sp, label=f"SP")
     axes[0].set_title(sp_plot_title)
     axes[0].set_xlabel("x0 (Å)")
     axes[0].set_ylabel("Sp(x0)")
+    axes[0].legend(loc="upper right")
 
     axes[1].plot(x0, pmf_im, label=f"PMF IMPOSED")
     axes[1].plot(x0, pmf_re, label=f"PMF RECONS")
     axes[1].set_title(pmf_plot_title)
     axes[1].set_xlabel("x0 (Å)")
     axes[1].set_ylabel("PMF(x0) (kcal/mol)")
+    axes[1].legend(loc="upper right")
 
-    plt.legend(loc="upper right")
     if out_fig_file:
         plt.savefig(out_fig_file)
     plt.show()
@@ -291,6 +317,20 @@ def cal_sp_final_eq(out_data_file="results-sp_final_eq/sp_final_eq.csv",
                      out_data_file=out_data_file, out_fig_file=out_fig_file)
 
 
+def cal_sp_apparent(out_data_file="results-sp_app/sp_app.csv",
+                    out_fig_file="results-sp_app/sp_app.pdf"):
+    x, sp_integrand, sp = _sp_apparent(x_a=x_a, x_b=x_b,
+                                       x_integration_samples=x_integration_samples_sp_final_eq,
+                                       process_count=mp.cpu_count() - 1,
+                                       return_integrand=True)
+
+    # Just camouflage
+    __handle_sp_data(x0=x, sp_integrand=sp_integrand, sp=sp,
+                     sp_plot_title="Sp(x) Theoretical Final-Eq (EXACT-APP)",
+                     pmf_plot_title="PMF Theoretical Final-Eq (EXACT-APP)",
+                     out_data_file=out_data_file, out_fig_file=out_fig_file)
+
+
 def plot_pmf_re(pmf_vs_x_dat_file, output_fig_file):
     df = pd.read_csv(pmf_vs_x_dat_file, sep=r"\s+", comment="#")
     x = df["X0"]
@@ -300,34 +340,54 @@ def plot_pmf_re(pmf_vs_x_dat_file, output_fig_file):
     plt.plot(x, pmf, label="PMF-IM")
     plt.plot(x, pmf_re, label="PMF-RE")
 
+    plt.xlabel("x (Å)")
+    plt.ylabel("PMF(x) (kcal/mol)")
     plt.legend(loc="upper right")
     if output_fig_file:
         plt.savefig(output_fig_file)
     plt.show()
 
 
-def plot_pmf():
+def plot_pmf_im():
     x = np.linspace(x_a, x_b, 100, endpoint=True)
-
     y = _pmf(x)
-    plt.plot(x, y, label="PMF")
 
-    # y = _cond_prob_vec(x, t=time_instant_test, x0=x_0, t0=t_0)
-    #
-    # plt.plot(x, y, label=f"t: {time_instant_test} s, x0: {x_0} A, t0: {t_0} s")
-    # plt.xlabel("x (A)")
-    # plt.ylabel("P(x, t, x0, t0)")
-    #
-    # plt.legend(loc="upper right")
+    plt.plot(x, y, label="PMF-IM")
+    plt.xlabel("x (Å)")
+    plt.ylabel("PMF(x) (kcal/mol)")
+
+    plt.legend(loc="upper right")
+    plt.show()
+
+
+def plot_cond_prob():
+    x = np.linspace(x_a, x_b, 100, endpoint=True)
+    y = _cond_prob_vec(x, t=time_instant_test, x0=x_0, t0=t_0)
+
+    plt.plot(x, y, label=f"t: {time_instant_test} s, x0: {x_0} A, t0: {t_0} s")
+    plt.xlabel("x (Å)")
+    plt.ylabel("P(x, t, x0, t0)")
+
+    plt.legend(loc="upper right")
     plt.show()
 
 
 if __name__ == '__main__':
-    # plot_pmf()
+    ## General Tests ------------------------
+    # plot_pmf_im()
+    # plot_cond_prob()
 
+    ## First Principle  ----------------------
     # cal_cond_prob_integral_x_vs_x0()
     # cal_cond_prob_integral_x_vs_t()
     # cal_fpt()
     # cal_sp_first_principle()
 
-    cal_sp_final_eq()
+    ## Final Eq ------------------------------
+    # TODO: vary x_a and x_b somehow for fit-1 and fit-2.2
+    cal_sp_final_eq(out_data_file="results-sp_final_eq/sp_final_eq-fit-1.csv",
+                    out_fig_file="results-sp_final_eq/sp_final_eq-fit-1.pdf")
+
+    ## Apparent PMF ------------------------------
+    # cal_sp_apparent(out_data_file="results-sp_app/sp_app-fit-1.csv",
+    #                 out_fig_file="results-sp_app/sp_app-fit-1.pdf")

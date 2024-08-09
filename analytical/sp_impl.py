@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
-from double_well_pmf import phi_scaled
+from double_well_pmf import phi_scaled, double_well_pmf_scaled
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -33,6 +33,10 @@ FIRST-PRINCIPLE and FINAL-EQUATION implementations of Splitting Probability from
 1. sp_final_eq(x0)
     Splitting probability from final Equation [NO INTEGRALS OR CALCULUS]
     Much more accurate and faster than first principle implementation
+    
+## APPARENT-EQUILIBRIUM Implementation ----------------------
+1. sp_app(x)
+    Splitting probability from Apparent PMF (assumes equilibrium) using Boltzmann inversion
 
 NOTE: functions ending with "vec" are vectorized versions of corresponding functions.
       They accept array of inputs, and compute the base function at each input in a for-loop
@@ -46,10 +50,11 @@ def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tup
     q, r = divmod(sample_count, process_count)
     chunk_size = q if r == 0 else q + 1
 
-    print(f"Computing in Multiprocess Mode"
-          f"\n Target Function: {worker_func.__name__}"
-          f"\n -> Total CPU(s): {mp.cpu_count()} | Req Processes: {process_count}"
-          f"\n -> Total Sample: {sample_count} | Samples per Process: {chunk_size}")
+    print("---------------------------------------------")
+    print(f"# Computing in Multiprocess Mode"
+          f"\n -> Target Function: {worker_func.__name__}"
+          f"\n -> Total CPU(s): {mp.cpu_count()} | Process Count: {process_count}"
+          f"\n -> Total Samples: {sample_count} | Samples per Process: {chunk_size}")
 
     has_args = isinstance(args, tuple)
 
@@ -72,6 +77,7 @@ def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tup
     time_end = time.time()
 
     print(f"Time taken: {time_end - time_start:.2f} s")
+    print("---------------------------------------------")
     return np.concatenate(res)
 
 
@@ -110,9 +116,14 @@ def mittag_leffler_vec(x: np.ndarray | int | float,
     return _vec(x=x, a=a, b=b, k_max=k_max)
 
 
-def dn(x: np.ndarray | float, n: int, a: float, hermite_monic=True) -> np.ndarray | float:
+def dn(x: np.ndarray | float, n: int, a: float, hermite_monic=True,
+       x_offset: float = 0, x_scale: float = 1,
+       out_offset: float = 0, out_scale: float = 1
+       ) -> np.ndarray | float:
     _hermite_poly = scipy.special.hermite(n, monic=hermite_monic)
-    return math.exp2(-n / 2) * np.exp(-a * np.square(x) / 2) * _hermite_poly(x * math.sqrt(a))
+    x = (x + x_offset) * x_scale
+    _val = math.exp2(-n / 2) * np.exp(-a * np.square(x) / 2) * _hermite_poly(x * math.sqrt(a))
+    return (_val + out_offset) * out_scale
 
 
 def kn(n: int, depth: float, ks: float, friction_coeff: float) -> float:
@@ -128,10 +139,16 @@ def dn_by_phi(x: np.ndarray | float, n: int, dn_a: float,
               x_scale: float = 1,
               phi_offset: float = 0,
               phi_scale: float = 1) -> np.ndarray | float:
-    return dn(x, n=n, a=dn_a) / phi_scaled(x, kb_t=kb_t, ks=ks,
-                                           depth=depth, bias=bias,
-                                           x_offset=x_offset, x_scale=x_scale,
-                                           phi_offset=phi_offset, phi_scale=phi_scale)
+    dn_val = dn(x, n=n, a=dn_a,
+                x_offset=x_offset, x_scale=x_scale,
+                out_offset=phi_offset, out_scale=phi_scale)
+
+    phi_val = phi_scaled(x, kb_t=kb_t, ks=ks,
+                         depth=depth, bias=bias,
+                         x_offset=x_offset, x_scale=x_scale,
+                         phi_offset=phi_offset, phi_scale=phi_scale)
+
+    return dn_val / phi_val
 
 
 def dn_by_phi_func(n: int, dn_a: float,
@@ -506,19 +523,19 @@ def __sp_final_eq_integrand(x0: float,
     return _pre * _sum
 
 
-def __sp_final_eq_integrand_vec(x0: np.ndarray | float,
-                                x_a: np.ndarray | float, x_b: np.ndarray | float,
-                                n_max: np.ndarray | int,
-                                cyl_dn_a: np.ndarray | float,
-                                kb_t: np.ndarray | float,
-                                ks: np.ndarray | float,
-                                friction_coeff: np.ndarray | float,
-                                depth: np.ndarray | float,
-                                bias: np.ndarray | float,
-                                x_offset: np.ndarray | float = 0,
-                                x_scale: np.ndarray | float = 1,
-                                phi_offset: np.ndarray | float = 0,
-                                phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
+def _sp_final_eq_integrand_vec(x0: np.ndarray | float,
+                               x_a: np.ndarray | float, x_b: np.ndarray | float,
+                               n_max: np.ndarray | int,
+                               cyl_dn_a: np.ndarray | float,
+                               kb_t: np.ndarray | float,
+                               ks: np.ndarray | float,
+                               friction_coeff: np.ndarray | float,
+                               depth: np.ndarray | float,
+                               bias: np.ndarray | float,
+                               x_offset: np.ndarray | float = 0,
+                               x_scale: np.ndarray | float = 1,
+                               phi_offset: np.ndarray | float = 0,
+                               phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
     _vec = np.vectorize(__sp_final_eq_integrand, otypes=[np.float128])
     return _vec(x0=x0,
                 x_a=x_a, x_b=x_b,
@@ -557,7 +574,7 @@ def sp_final_eq(x_a: float, x_b: float,
             (x_samples, sp)
     """
     x = np.linspace(x_a, x_b, x_integration_samples)
-    y = mp_execute(__sp_final_eq_integrand_vec, input_arr=x, process_count=process_count,
+    y = mp_execute(_sp_final_eq_integrand_vec, input_arr=x, process_count=process_count,
                    args=(x_a, x_b,
                          n_max, cyl_dn_a,
                          kb_t, ks, friction_coeff,
@@ -582,6 +599,73 @@ def sp_final_eq(x_a: float, x_b: float,
 
 
 # ==========================================================================
+# -------------------------- APPARENT SP -----------------------------------
+# ==========================================================================
+
+def _sp_app_integrand_vec(x: np.ndarray | float,
+                          kb_t: float,
+                          ks: float,
+                          depth: float,
+                          bias: float,
+                          x_offset: float = 0,
+                          x_scale: float = 1,
+                          phi_offset: float = 0,
+                          phi_scale: float = 1):
+    beta = 1 / kb_t
+    pmf_arr = double_well_pmf_scaled(x=x,
+                                     kb_t=kb_t, ks=ks,
+                                     depth=depth, bias=bias,
+                                     x_offset=x_offset, x_scale=x_scale,
+                                     phi_offset=phi_offset, phi_scale=phi_scale)
+    return np.exp(beta * pmf_arr)
+
+
+def sp_apparent(x_a: float, x_b: float,
+                x_integration_samples: int,
+                process_count: int,
+                return_integrand: bool,  # Returns a tuple (x, integrand, sp) otherwise return (x, sp)
+                kb_t: float,
+                ks: float,
+                depth: float,
+                bias: float,
+                x_offset: float = 0,
+                x_scale: float = 1,
+                phi_offset: float = 0,
+                phi_scale: float = 1):
+    """
+    Calculates the Splitting probability between x_a and x_b.
+    Assumes Equilibrium case, and uses Boltzmann inversion
+    to calculate Sp(x) using the apparent pmf
+
+    Returns a tuple containing numpy.ndarray(s) in form
+        if return_integrand:
+            (x_samples, sp_integrand, sp)
+        else:
+            (x_samples, sp)
+    """
+
+    x = np.linspace(x_a, x_b, x_integration_samples)
+    y = mp_execute(_sp_app_integrand_vec, input_arr=x, process_count=process_count,
+                   args=(kb_t, ks,
+                         depth, bias,
+                         x_offset, x_scale,
+                         phi_offset, phi_scale))
+
+    # Offset to get only values
+    # y -= np.min(y)
+
+    # Integral in the denominator = Constant
+    c = scipy.integrate.trapezoid(y=y, x=x)
+    y2 = np.zeros(len(x), dtype=np.float128)
+
+    for i in range(len(x)):
+        _v = scipy.integrate.trapezoid(y=y[i:], x=x[i:])
+        y2[i] = _v / c
+
+    if return_integrand:
+        return x, y, y2
+    return x, y2
+
 
 # Reconstructs RMF from Splitting Probability
 def pmf_re(x: np.ndarray, sp: np.ndarray, kb_t: float):

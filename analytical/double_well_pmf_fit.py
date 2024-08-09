@@ -2,8 +2,9 @@ import numpy as np
 import scipy as sp
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-from double_well_pmf import double_well_pmf_scaled, phi_scaled
+import scipy
+
+from double_well_pmf import double_well_pmf_scaled, phi_scaled, minimize_func
 
 comment_token = "#"
 
@@ -42,7 +43,46 @@ def main():
 
     # -----------------------------------------------------------------------------------
 
-    # Wrapper function used to fit the given data
+    # Double Well
+    data_df = pd.read_csv(data_file_name, comment=comment_token, sep=r"\s+")
+    # db_well = pd.read_csv("sp_traj2.csv", comment="#", delimiter=r"\s+")
+
+    if data_x_start is not None:
+        data_df = data_df[data_df[data_x_col_name] >= data_x_start]
+
+    if data_x_end is not None:
+        data_df = data_df[data_df[data_x_col_name] < data_x_end]
+
+    data_x = data_df[data_x_col_name].values
+    data_pmf = data_df[data_pmf_col_name].values
+
+    # Initial Offsets and scales for fitting
+    fit_init_x_offset = -(data_x[0] + data_x[-1]) / 2
+    fit_init_x_scale = abs(2 / (data_x[-1] - data_x[0]))
+    fit_init_phi_offset = 0
+    fit_init_phi_scale = 1
+
+    # Interpolating Data
+    if interpolate_sample_count < 1:
+        interpolate_sample_count = 100  # default
+
+    data_interp_x = np.linspace(data_x[0] - 1, data_x[-1] + 1, interpolate_sample_count)
+    if interpolate_data:
+        _data_interp_func = sp.interpolate.interp1d(data_x, data_pmf, kind="quadratic", fill_value="extrapolate")
+        data_interp_pmf = _data_interp_func(data_interp_x)
+    else:
+        data_interp_pmf = None
+
+    # Fitting just by data points instead of interpolated curve
+    if interpolate_data and fit_interpolated_data:
+        _fit_in_x = data_interp_x
+        _fit_in_pmf = data_interp_pmf
+    else:
+        _fit_in_x = data_x
+        _fit_in_pmf = data_pmf
+
+        # Wrapper function used to fit the given data
+
     def double_well_pmf_fit_func(x: np.ndarray,
                                  depth: float,
                                  bias: float,
@@ -61,49 +101,12 @@ def main():
                                       phi_offset=phi_offset,
                                       phi_scale=phi_scale)
 
-    # Double Well
-    data_df = pd.read_csv(data_file_name, comment=comment_token, sep=r"\s+")
-    # db_well = pd.read_csv("sp_traj2.csv", comment="#", delimiter=r"\s+")
-
-    if data_x_start is not None:
-        data_df = data_df[data_df[data_x_col_name] >= data_x_start]
-
-    if data_x_end is not None:
-        data_df = data_df[data_df[data_x_col_name] < data_x_end]
-
-    data_x = data_df[data_x_col_name].values
-    data_pmf = data_df[data_pmf_col_name].values
-
-    # Interpolating Data
-    if interpolate_sample_count < 1:
-        interpolate_sample_count = 100  # default
-
-    data_interp_x = np.linspace(data_x[0] - 1, data_x[-1] + 1, interpolate_sample_count)
-    if interpolate_data:
-        _data_interp_func = sp.interpolate.interp1d(data_x, data_pmf, kind="quadratic", fill_value="extrapolate")
-        data_interp_pmf = _data_interp_func(data_interp_x)
-    else:
-        data_interp_pmf = None
-
-    # Initial Offsets and scales for fitting
-    fit_init_x_offset = -(data_x[0] + data_x[-1]) / 2
-    fit_init_x_scale = abs(2 / (data_x[-1] - data_x[0]))
-    fit_init_phi_offset = 0
-    fit_init_phi_scale = 1
-
-    # Fitting just by data points instead of interpolated curve
-    if interpolate_data and fit_interpolated_data:
-        _fit_in_x = data_interp_x
-        _fit_in_pmf = data_interp_pmf
-    else:
-        _fit_in_x = data_x
-        _fit_in_pmf = data_pmf
-
-    param_opt_vals, param_covars = curve_fit(double_well_pmf_fit_func,
-                                             xdata=_fit_in_x,
-                                             ydata=_fit_in_pmf,
-                                             p0=(fit_init_depth, fit_init_bias, fit_init_x_offset, fit_init_x_scale,
-                                                 fit_init_phi_offset, fit_init_phi_scale))
+    param_opt_vals, param_covars = scipy.optimize.curve_fit(double_well_pmf_fit_func,
+                                                            xdata=_fit_in_x,
+                                                            ydata=_fit_in_pmf,
+                                                            p0=(fit_init_depth, fit_init_bias, fit_init_x_offset,
+                                                                fit_init_x_scale,
+                                                                fit_init_phi_offset, fit_init_phi_scale))
 
     param_names = ["depth", "bias", "x_offset", "x_scale", "phi_offset", "phi_scale"]
     # param_val_str = "\n".join(zip(param_names, param_opt_vals))
@@ -168,7 +171,8 @@ def load_double_well_pmf_func(fit_param_file, kb_t: float, ks: float):
     return lambda x: double_well_pmf_scaled(x, kb_t, ks, *_fit_params)
 
 
-def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float, x_start: float, x_stop: float,
+def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float,
+                                 x_start: float, x_stop: float,
                                  sample_count: int, output_sample_file: str):
     func = load_double_well_pmf_func(fit_param_file, kb_t=kb_t, ks=ks)
 
@@ -186,10 +190,26 @@ def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float, x_start
     plt.show()
 
 
+# Returns the minima coordinates (x, y) where x is in between (x_start, x_stop)
+def minimize_double_well_pmf(fit_param_file, kb_t: float, ks: float,
+                             x_start: float, x_stop: float):
+    pmf_func = load_double_well_pmf_func(fit_param_file, kb_t=kb_t, ks=ks)
+
+    return minimize_func(pmf_func, x_start=x_start, x_stop=x_stop)
+
+
 if __name__ == '__main__':
     # main()
 
-    samplify_double_well_pmf_fit("results-double_well_fit/fit_params-2.2.txt",
-                                 1.9872036e-3 * 300, 10,
-                                 24, 41, 200,
-                                 "results-double_well_fit/fit_samples-2.2.dat")
+    # samplify_double_well_pmf_fit("results-double_well_fit/fit_params-2.2.txt",
+    #                              1.9872036e-3 * 300, 10,
+    #                              24, 41, 200,
+    #                              "results-double_well_fit/fit_samples-2.2.dat")
+
+    min_val = minimize_double_well_pmf("results-double_well_fit/fit_params-2.2.txt",
+                             1.9872036e-3 * 300, 10,
+                             38, 40)
+
+    print(min_val)
+    # 14.963448853268662, 24.210883674081007
+    # 26.637210420334856, 38.45796438483576
