@@ -20,7 +20,7 @@
 #SBATCH --nodes=1
 #
 # Tasks per node (based on number of cores per node = 48 in this HPC)
-#SBATCH --ntasks-per-node=46
+#SBATCH --ntasks-per-node=48
 #
 # Processors (cores) per task 
 #SBATCH --cpus-per-task=1

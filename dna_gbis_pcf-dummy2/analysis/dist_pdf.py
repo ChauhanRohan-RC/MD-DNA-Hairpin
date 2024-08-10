@@ -22,10 +22,6 @@ comment_token = "#"
 frame_vs_ext_file = "dist_vs_frame.dat"
 frame_step_fs = 2 * 100  # time (in fs) between frames = time_step (fs) * dcd_freq. -1 for NOT_DEFINED
 
-# Frame Range (optional). NOTE: frame_index = time_fs / frame_step_fs
-frame_index_start = -1         # Inclusive [-1 for no start bound]
-frame_index_end = -1           # Exclusive [-1 for no end bound]
-
 # Histogram parameters
 ext_start: float = 0.0
 ext_end: float = 100.0
@@ -53,18 +49,13 @@ _rolling_win_bins, _rolling_win_size = parse_rolling_win_bins()
 ## Output --------------------------------------------------------------
 output_pdf_data_file = "dist_pdf.dat"
 output_pdf_avg_data_file = f"dist_pdf-avg{_rolling_win_bins}.dat" if _rolling_win_bins > 0 else ""
-output_fig_file = "dist_pdf.svg"        # (optional). Leave blank to not save figure
+output_fig_file = "dist_pdf.svg"
 comment_output_header = True
 
 # ----------------------------------------------------------------------
 
 # Dataframe
 frame_ext_df: pd.DataFrame = pd.read_csv(frame_vs_ext_file, sep=r"\s+", comment=comment_token, names=("FRAME", "EXT"))
-if frame_index_start >= 0:
-    frame_ext_df = frame_ext_df[frame_ext_df["FRAME"] >= frame_index_start]
-    
-if frame_index_end >= 0:
-    frame_ext_df = frame_ext_df[frame_ext_df["FRAME"] < frame_index_end]
 
 # Histogram
 ext_hist, ext_bin_edges = np.histogram(a=frame_ext_df["EXT"], bins=ext_bin_count, range=(ext_start, ext_end), density=True)

@@ -22,7 +22,7 @@ def main():
     Ks = 10  # Force constant (kcal/mol/Å**2)
 
     # INPUT -------------------------------------------------
-    data_file_name = "sp_traj1.csv"
+    data_file_name = "sp_traj2.2.csv"
     data_x_col_name = "EXT_BIN_MED"
     data_pmf_col_name = "PMF_RE"
 
@@ -37,9 +37,9 @@ def main():
     fit_init_bias = 0.01  # Initial BIAS param for Double-Well fit
 
     # OUTPUT -----------------------------------------------
-    output_params_file = "results-double_well_fit/fit_params-1.txt"  # (optional) Optimized Fit params
-    output_covar_file = "results-double_well_fit/fit_covariances-1.txt"  # (optional) Covariance Matrix of Fit-params
-    output_fig_file = "results-double_well_fit/fit-1.svg"  # (optional) save fit plot
+    output_params_file = "results-double_well_fit/fit_params-2.2.txt"  # (optional) Optimized Fit params
+    output_covar_file = "results-double_well_fit/fit_covariances-2.2.txt"  # (optional) Covariance Matrix of Fit-params
+    output_fig_file = "results-double_well_fit/fit-2.2.svg"  # (optional) save fit plot
 
     # -----------------------------------------------------------------------------------
 
@@ -201,15 +201,20 @@ def minimize_double_well_pmf(fit_param_file, kb_t: float, ks: float,
 if __name__ == '__main__':
     # main()
 
-    # samplify_double_well_pmf_fit("results-double_well_fit/fit_params-2.2.txt",
+    # samplify_double_well_pmf_fit("results-double_well_fit/fit_params-1.txt",
     #                              1.9872036e-3 * 300, 10,
-    #                              24, 41, 200,
-    #                              "results-double_well_fit/fit_samples-2.2.dat")
+    #                              13, 26, 500,
+    #                              "results-double_well_fit/fit_samples-1.dat")
 
-    min_val = minimize_double_well_pmf("results-double_well_fit/fit_params-2.2.txt",
-                             1.9872036e-3 * 300, 10,
-                             38, 40)
+    # min_val = minimize_double_well_pmf("results-double_well_fit/fit_params-2.1.txt",
+    #                          1.9872036e-3 * 300, 10,
+    #                          26, 28)
+    #
+    # print(min_val)
 
-    print(min_val)
-    # 14.963448853268662, 24.210883674081007
-    # 26.637210420334856, 38.45796438483576
+    ## NOTE: Double well Minima(s)
+    # fit_params-1.txt -> 14.963448853268662, 24.210883674081007
+    # fit_params-2.1.txt -> 26.887663450991564, 38.00000736802938
+    # fit_params-2.2.txt -> 26.637210420334856, 38.45796438483576
+
+    pass

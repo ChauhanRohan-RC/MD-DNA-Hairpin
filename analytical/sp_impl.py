@@ -3,9 +3,11 @@ import time
 
 import math
 import warnings
+from typing import Sequence, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy
 
 from double_well_pmf import phi_scaled, double_well_pmf_scaled
@@ -42,6 +44,21 @@ NOTE: functions ending with "vec" are vectorized versions of corresponding funct
       They accept array of inputs, and compute the base function at each input in a for-loop
 """
 
+# CONSTANTS
+OFFSET_SP_INTEGRAND_TO_POSITIVE: bool = True
+
+COMMENT_TOKEN = "#"
+
+COL_NAME_X = "X"
+COL_NAME_SP_INTEGRAND = "SP_INTEGRAND"
+COL_NAME_SP = "SP"
+COL_NAME_PMF = "PMF"
+COL_NAME_PMF_IM = "PMF_IM"  # Imposed PMF
+COL_NAME_PMF_RE = "PMF_RE"  # Reconstructed PMF
+
+CPU_COUNT = mp.cpu_count()
+DEFAULT_PROCESS_COUNT = CPU_COUNT - 1
+
 
 # Multiprocessing
 def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tuple = None) -> np.ndarray:
@@ -53,7 +70,7 @@ def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tup
     print("---------------------------------------------")
     print(f"# Computing in Multiprocess Mode"
           f"\n -> Target Function: {worker_func.__name__}"
-          f"\n -> Total CPU(s): {mp.cpu_count()} | Process Count: {process_count}"
+          f"\n -> Total CPU(s): {CPU_COUNT} | Process Count: {process_count}"
           f"\n -> Total Samples: {sample_count} | Samples per Process: {chunk_size}")
 
     has_args = isinstance(args, tuple)
@@ -165,6 +182,84 @@ def dn_by_phi_func(n: int, dn_a: float,
                                depth=depth, bias=bias,
                                x_offset=x_offset, x_scale=x_scale,
                                phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+# ==========================================================================
+# ------------------- COMMON METHODS  -----------------------
+# ==========================================================================
+
+# Reconstructs RMF from Splitting Probability
+def pmf_re(x: np.ndarray, sp: np.ndarray, kb_t: float):
+    _grad = np.gradient(sp, x)
+    print("SP IMPL: Reconstructing PMF from SP")
+    print(f"SP IMPL: SP gradient +ve count: {(_grad > 0).sum()}")
+
+    return kb_t * np.log(-_grad)
+
+
+def to_csv(df: pd.DataFrame, path_or_buf, sep="\t", header=True, index=False, index_label=False):
+    df.to_csv(path_or_buf, sep=sep, header=header, index=index, index_label=index_label)
+
+
+def read_csv(path_or_buf, sep=r"\s+",
+             comment=COMMENT_TOKEN,
+             header: int | Sequence[int] | None | Literal["infer"] = "infer"):
+    return pd.read_csv(path_or_buf, sep=sep, comment=comment, header=header)
+
+
+def _create_sp_dataframe(x: np.ndarray,
+                         sp: np.ndarray,
+                         sp_integrand: np.ndarray | None,
+                         pmf_re: np.ndarray | None,
+                         out_data_file: str | None):
+    _df = pd.DataFrame()
+    _df[COL_NAME_X] = x
+    if sp_integrand is not None:
+        _df[COL_NAME_SP_INTEGRAND] = sp_integrand
+    _df[COL_NAME_SP] = sp
+
+    if pmf_re is not None:
+        _df[COL_NAME_PMF_RE] = pmf_re
+
+    if out_data_file:
+        print(f"SP IMPL: Writing Splitting Probability DataFrame to file \"{out_data_file}\"")
+        to_csv(_df, out_data_file)
+
+    return _df
+
+
+def _handle_sp_integrand(x: np.ndarray,
+                         sp_integrand: np.ndarray,
+                         kb_t: float,
+                         return_sp_integrand: bool,
+                         reconstruct_pmf: bool,
+                         out_data_file: str | None) -> pd.DataFrame:
+    _min = np.min(sp_integrand)
+    # Offset to get only values
+    if _min < 0:
+        print(f"SP_IMPL: SP_INTEGRAND has negative values. Min Value: {_min}")
+        if OFFSET_SP_INTEGRAND_TO_POSITIVE:
+            sp_integrand -= _min
+            print(f"SP_IMPL: Offsetting SP_INTEGRAND (to make it Positive) by the Min Value: {_min}")
+        else:
+            print(f"SP_IMPL: SP_INTEGRAND Offsetting disabled!! Working with negative values...")
+
+    # Integral in the denominator = Constant
+    c = scipy.integrate.trapezoid(y=sp_integrand, x=x)
+    sp = np.zeros(len(x), dtype=np.float128)
+
+    for i in range(len(x)):
+        _v = scipy.integrate.trapezoid(y=sp_integrand[i:], x=x[i:])
+        sp[i] = _v / c
+
+    _sp_integrand = sp_integrand if return_sp_integrand else None
+    _pmf_re = pmf_re(x=x, sp=sp, kb_t=kb_t) if reconstruct_pmf else None
+
+    return _create_sp_dataframe(x=x,
+                                sp=sp,
+                                sp_integrand=_sp_integrand,
+                                pmf_re=_pmf_re,
+                                out_data_file=out_data_file)
 
 
 # ==========================================================================
@@ -358,20 +453,20 @@ def first_pass_time_vec(x0: np.ndarray | float,
 # The integrand of Splitting probability = 0th moment of first_passage_time
 # This must be integrated over x in a running-manner to get final Splitting Probability
 # (uses defining integral equations)
-def __sp_integrand(x0: float, t0: float,
-                   t_start: float, t_stop: float, t_samples: int,
-                   x_a: float, x_b: float, x_samples: int,
-                   n_max: int,
-                   cyl_dn_a: float,
-                   kb_t: float,
-                   ks: float,
-                   friction_coeff: float,
-                   depth: float,
-                   bias: float,
-                   x_offset: float = 0,
-                   x_scale: float = 1,
-                   phi_offset: float = 0,
-                   phi_scale: float = 1) -> np.float128:
+def __sp_first_princ_integrand(x0: float, t0: float,
+                               t_start: float, t_stop: float, t_samples: int,
+                               x_a: float, x_b: float, x_samples: int,
+                               n_max: int,
+                               cyl_dn_a: float,
+                               kb_t: float,
+                               ks: float,
+                               friction_coeff: float,
+                               depth: float,
+                               bias: float,
+                               x_offset: float = 0,
+                               x_scale: float = 1,
+                               phi_offset: float = 0,
+                               phi_scale: float = 1) -> np.float128:
     t_arr = np.linspace(t_start, t_stop, num=t_samples, endpoint=True)
     fpt_arr = first_pass_time_vec(x0, t0=t0, t=t_arr, x_a=x_a, x_b=x_b, x_samples=x_samples,
                                   n_max=n_max, cyl_dn_a=cyl_dn_a,
@@ -383,22 +478,22 @@ def __sp_integrand(x0: float, t0: float,
     return scipy.integrate.trapezoid(fpt_arr, t_arr)
 
 
-def __sp_integrand_vec(x0: np.ndarray | float,
-                       t0: np.ndarray | float,
-                       t_start: np.ndarray | float, t_stop: np.ndarray | float, t_samples: np.ndarray | int,
-                       x_a: np.ndarray | float, x_b: np.ndarray | float, x_samples: np.ndarray | int,
-                       n_max: np.ndarray | int,
-                       cyl_dn_a: np.ndarray | float,
-                       kb_t: np.ndarray | float,
-                       ks: np.ndarray | float,
-                       friction_coeff: np.ndarray | float,
-                       depth: np.ndarray | float,
-                       bias: np.ndarray | float,
-                       x_offset: np.ndarray | float = 0,
-                       x_scale: np.ndarray | float = 1,
-                       phi_offset: np.ndarray | float = 0,
-                       phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(__sp_integrand, otypes=[np.float128])
+def __sp_first_princ_integrand_vec(x0: np.ndarray | float,
+                                   t0: np.ndarray | float,
+                                   t_start: np.ndarray | float, t_stop: np.ndarray | float, t_samples: np.ndarray | int,
+                                   x_a: np.ndarray | float, x_b: np.ndarray | float, x_samples: np.ndarray | int,
+                                   n_max: np.ndarray | int,
+                                   cyl_dn_a: np.ndarray | float,
+                                   kb_t: np.ndarray | float,
+                                   ks: np.ndarray | float,
+                                   friction_coeff: np.ndarray | float,
+                                   depth: np.ndarray | float,
+                                   bias: np.ndarray | float,
+                                   x_offset: np.ndarray | float = 0,
+                                   x_scale: np.ndarray | float = 1,
+                                   phi_offset: np.ndarray | float = 0,
+                                   phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
+    _vec = np.vectorize(__sp_first_princ_integrand, otypes=[np.float128])
     return _vec(x0=x0, t0=t0,
                 t_start=t_start, t_stop=t_stop, t_samples=t_samples,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
@@ -413,7 +508,9 @@ def sp_first_principle(x_a: float, x_b: float,
                        x_integration_samples: int,
                        t0: float, t_start: float, t_stop: float, t_samples: int,
                        process_count: int,
-                       return_integrand: bool,  # Returns a tuple (x, integrand, sp) otherwise return (x, sp)
+                       return_sp_integrand: bool,
+                       reconstruct_pmf: bool,
+                       out_data_file: str | None,
                        n_max: int,
                        cyl_dn_a: float,
                        kb_t: float,
@@ -424,7 +521,7 @@ def sp_first_principle(x_a: float, x_b: float,
                        x_offset: float = 0,
                        x_scale: float = 1,
                        phi_offset: float = 0,
-                       phi_scale: float = 1):
+                       phi_scale: float = 1) -> pd.DataFrame:
     """
     Calculates the Splitting probability between x_a and x_b.
     It's a "first-principle" implementation
@@ -433,36 +530,36 @@ def sp_first_principle(x_a: float, x_b: float,
     HIGHLY COMPUTATION INTENSIVE: uses multiple sampling, differentiation and integration steps
     Use "sp_final_eq" for most purposes
 
-    Returns a tuple containing numpy.ndarray's in form
-        if return_integrand:
-            (x_samples, sp_integrand, sp)
-        else:
-            (x_samples, sp)
+    :returns A pandas dataframe containing following columns
+        1. COL_NAME_X:
+            -> X values sampled in range [x_a, x_b]. sample count = x_integration_samples
+        2. COL_NAME_SP_INTEGRAND:
+            -> Splitting Probability integrand values at x
+            -> ONLY PRESENT WHEN "return_sp_integrand=True"
+        3. COL_NAME_SP:
+            -> splitting probability values at x
+        4. COL_NAME_PMF_RE:
+            -> PMF reconstructed from splitting probability. see {@link pme_re(x, sp_integrand, kb_t)}
+            -> ONLY PRESENT WHEN "reconstruct_pmf=True"
+
+        if "out_data_file" is set, the returned DataFrame is also saved to this file
     """
-    x = np.linspace(x_a, x_b, x_integration_samples)
-    y = mp_execute(__sp_integrand_vec, input_arr=x, process_count=process_count,
-                   args=(t0, t_start, t_stop, t_samples,
-                         x_a, x_b, x_integration_samples,
-                         n_max, cyl_dn_a,
-                         kb_t, ks, friction_coeff,
-                         depth, bias,
-                         x_offset, x_scale,
-                         phi_offset, phi_scale))
+    x = np.linspace(x_a, x_b, x_integration_samples, endpoint=True)
+    sp_integrand = mp_execute(__sp_first_princ_integrand_vec, input_arr=x, process_count=process_count,
+                              args=(t0, t_start, t_stop, t_samples,
+                                    x_a, x_b, x_integration_samples,
+                                    n_max, cyl_dn_a,
+                                    kb_t, ks, friction_coeff,
+                                    depth, bias,
+                                    x_offset, x_scale,
+                                    phi_offset, phi_scale))
 
-    # Offset to get only values
-    y -= np.min(y)
-
-    # Integral in the denominator = Constant
-    c = scipy.integrate.trapezoid(y=y, x=x)
-    y2 = np.zeros(len(x), dtype=np.float128)
-
-    for i in range(len(x)):
-        _v = scipy.integrate.trapezoid(y=y[i:], x=x[i:])
-        y2[i] = _v / c
-
-    if return_integrand:
-        return x, y, y2
-    return x, y2
+    return _handle_sp_integrand(x=x,
+                                sp_integrand=sp_integrand,
+                                kb_t=kb_t,
+                                return_sp_integrand=return_sp_integrand,
+                                reconstruct_pmf=reconstruct_pmf,
+                                out_data_file=out_data_file)
 
 
 # ==========================================================================
@@ -549,7 +646,9 @@ def _sp_final_eq_integrand_vec(x0: np.ndarray | float,
 def sp_final_eq(x_a: float, x_b: float,
                 x_integration_samples: int,
                 process_count: int,
-                return_integrand: bool,  # Returns a tuple (x, integrand, sp) otherwise return (x, sp)
+                return_sp_integrand: bool,
+                reconstruct_pmf: bool,
+                out_data_file: str | None,
                 n_max: int,
                 cyl_dn_a: float,
                 kb_t: float,
@@ -560,42 +659,42 @@ def sp_final_eq(x_a: float, x_b: float,
                 x_offset: float = 0,
                 x_scale: float = 1,
                 phi_offset: float = 0,
-                phi_scale: float = 1):
+                phi_scale: float = 1) -> pd.DataFrame:
     """
     Calculates the Splitting probability between x_a and x_b.
     Uses the final "exact" equation, hence cheap and accurate.
 
     Use this method instead of first-principle implementation "sp"
 
-    Returns a tuple containing numpy.ndarray(s) in form
-        if return_integrand:
-            (x_samples, sp_integrand, sp)
-        else:
-            (x_samples, sp)
+    :returns A pandas dataframe containing following columns
+        1. COL_NAME_X:
+            -> X values sampled in range [x_a, x_b]. sample count = x_integration_samples
+        2. COL_NAME_SP_INTEGRAND:
+            -> Splitting Probability integrand values at x
+            -> ONLY PRESENT WHEN "return_sp_integrand=True"
+        3. COL_NAME_SP:
+            -> splitting probability values at x
+        4. COL_NAME_PMF_RE:
+            -> PMF reconstructed from splitting probability. see {@link pme_re(x, sp_integrand, kb_t)}
+            -> ONLY PRESENT WHEN "reconstruct_pmf=True"
+
+        if "out_data_file" is set, the returned DataFrame is also saved to this file
     """
-    x = np.linspace(x_a, x_b, x_integration_samples)
-    y = mp_execute(_sp_final_eq_integrand_vec, input_arr=x, process_count=process_count,
-                   args=(x_a, x_b,
-                         n_max, cyl_dn_a,
-                         kb_t, ks, friction_coeff,
-                         depth, bias,
-                         x_offset, x_scale,
-                         phi_offset, phi_scale))
+    x = np.linspace(x_a, x_b, num=x_integration_samples, endpoint=True)
+    sp_integrand = mp_execute(_sp_final_eq_integrand_vec, input_arr=x, process_count=process_count,
+                              args=(x_a, x_b,
+                                    n_max, cyl_dn_a,
+                                    kb_t, ks, friction_coeff,
+                                    depth, bias,
+                                    x_offset, x_scale,
+                                    phi_offset, phi_scale))
 
-    # Offset to get only values
-    y -= np.min(y)
-
-    # Integral in the denominator = Constant
-    c = scipy.integrate.trapezoid(y=y, x=x)
-    y2 = np.zeros(len(x), dtype=np.float128)
-
-    for i in range(len(x)):
-        _v = scipy.integrate.trapezoid(y=y[i:], x=x[i:])
-        y2[i] = _v / c
-
-    if return_integrand:
-        return x, y, y2
-    return x, y2
+    return _handle_sp_integrand(x=x,
+                                sp_integrand=sp_integrand,
+                                kb_t=kb_t,
+                                return_sp_integrand=return_sp_integrand,
+                                reconstruct_pmf=reconstruct_pmf,
+                                out_data_file=out_data_file)
 
 
 # ==========================================================================
@@ -623,7 +722,9 @@ def _sp_app_integrand_vec(x: np.ndarray | float,
 def sp_apparent(x_a: float, x_b: float,
                 x_integration_samples: int,
                 process_count: int,
-                return_integrand: bool,  # Returns a tuple (x, integrand, sp) otherwise return (x, sp)
+                return_sp_integrand: bool,
+                reconstruct_pmf: bool,
+                out_data_file: str | None,
                 kb_t: float,
                 ks: float,
                 depth: float,
@@ -637,43 +738,34 @@ def sp_apparent(x_a: float, x_b: float,
     Assumes Equilibrium case, and uses Boltzmann inversion
     to calculate Sp(x) using the apparent pmf
 
-    Returns a tuple containing numpy.ndarray(s) in form
-        if return_integrand:
-            (x_samples, sp_integrand, sp)
-        else:
-            (x_samples, sp)
+    :returns A pandas dataframe containing following columns
+        1. COL_NAME_X:
+            -> X values sampled in range [x_a, x_b]. sample count = x_integration_samples
+        2. COL_NAME_SP_INTEGRAND:
+            -> Splitting Probability integrand values at x
+            -> ONLY PRESENT WHEN "return_sp_integrand=True"
+        3. COL_NAME_SP:
+            -> splitting probability values at x
+        4. COL_NAME_PMF_RE:
+            -> PMF reconstructed from splitting probability. see {@link pme_re(x, sp_integrand, kb_t)}
+            -> ONLY PRESENT WHEN "reconstruct_pmf=True"
+
+        if "out_data_file" is set, the returned DataFrame is also saved to this file
     """
 
-    x = np.linspace(x_a, x_b, x_integration_samples)
-    y = mp_execute(_sp_app_integrand_vec, input_arr=x, process_count=process_count,
-                   args=(kb_t, ks,
-                         depth, bias,
-                         x_offset, x_scale,
-                         phi_offset, phi_scale))
+    x = np.linspace(x_a, x_b, x_integration_samples, endpoint=True)
+    sp_integrand = mp_execute(_sp_app_integrand_vec, input_arr=x, process_count=process_count,
+                              args=(kb_t, ks,
+                                    depth, bias,
+                                    x_offset, x_scale,
+                                    phi_offset, phi_scale))
 
-    # Offset to get only values
-    # y -= np.min(y)
-
-    # Integral in the denominator = Constant
-    c = scipy.integrate.trapezoid(y=y, x=x)
-    y2 = np.zeros(len(x), dtype=np.float128)
-
-    for i in range(len(x)):
-        _v = scipy.integrate.trapezoid(y=y[i:], x=x[i:])
-        y2[i] = _v / c
-
-    if return_integrand:
-        return x, y, y2
-    return x, y2
-
-
-# Reconstructs RMF from Splitting Probability
-def pmf_re(x: np.ndarray, sp: np.ndarray, kb_t: float):
-    _grad = np.gradient(sp, x)
-    print("SP IMPL: Reconstructing PMF from SP")
-    print(f"SP IMPL: SP gradient +ve count: {(_grad > 0).sum()}")
-
-    return kb_t * np.log(-_grad)
+    return _handle_sp_integrand(x=x,
+                                sp_integrand=sp_integrand,
+                                kb_t=kb_t,
+                                return_sp_integrand=return_sp_integrand,
+                                reconstruct_pmf=reconstruct_pmf,
+                                out_data_file=out_data_file)
 
 
 def test():
