@@ -8,7 +8,8 @@ from matplotlib.figure import figaspect
 import sp_impl
 from double_well_pmf import phi_scaled
 from double_well_pmf_fit import load_fit_params
-from sp_impl import DEFAULT_PROCESS_COUNT, COL_NAME_X, COL_NAME_PMF_IM, COL_NAME_PMF_RE, COL_NAME_SP
+from sp_impl import DEFAULT_PROCESS_COUNT, COL_NAME_X, COL_NAME_EXTENSION, COL_NAME_EXT_BIN_MEDIAN, COL_NAME_PMF_IM, \
+    COL_NAME_PMF_RE, COL_NAME_SP
 
 """
 Script to Evaluate quantities implemented in "sp_impl.py"
@@ -30,7 +31,7 @@ friction_coeff = 1e-7  # friction coeff (eta_1) (in kcal.sec/mol/Å**2). In rang
 n_max = 10
 cyl_dn_a = 10  # "a" param of cylindrical function
 
-fit_params_file = "results-double_well_fit/fit_params-1.2.txt"  # TODO: set fit-params
+fit_params_file = "results-double_well_fit/fit_params-2.2.txt"  # TODO: set fit-params
 pmf_fit_params = load_fit_params(fit_params_file)
 depth, bias, x_offset, x_scale, phi_offset, phi_scale = pmf_fit_params
 
@@ -55,8 +56,8 @@ depth, bias, x_offset, x_scale, phi_offset, phi_scale = pmf_fit_params
 #           minima: 26.637210420334856, 38.45796438483576
 #           Optimal: x_a = 26.65, x_b = 38.41
 
-x_a = 15.0  # TODO: LEFT Boundary (Å)
-x_b = 24.23  # TODO: RIGHT Boundary (Å)
+x_a = 26.65  # TODO: LEFT Boundary (Å)
+x_b = 38.41  # TODO: RIGHT Boundary (Å)
 x_integration_samples = 100
 x_integration_samples_sp_final_eq = 100000  # TODO: set integration sample count
 
@@ -264,27 +265,38 @@ def cal_fpt(out_data_file="results-sp_first_princ/fpt_vs_t.csv",
 
 
 def plot_sp_theory_sim(sp_theory_df: pd.DataFrame,
-                       sp_sim_df: pd.DataFrame | None,
+                       sim_traj_df: pd.DataFrame | None,
+                       sim_app_pmf_df: pd.DataFrame | None,
                        out_file_name_prefix: str | None,
                        out_fig_file: str | None = "",
                        plot_pmf_im: bool = True,
                        pmf_im_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
                        pmf_im_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       sim_data_col_x: str = "EXT_BIN_MED",
-                       interp_sim_sp: bool = True,
-                       interp_sim_pmf_re: bool = True,
-                       interp_sim_samples: int = 200,
-                       interp_sim_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       interp_sim_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                       sim_traj_df_col_x: str = COL_NAME_EXT_BIN_MEDIAN,
+                       interp_sim_traj_sp: bool = True,
+                       plot_interp_sim_traj_sp: bool = True,
+                       interp_sim_traj_pmf_re: bool = True,
+                       plot_interp_sim_traj_pmf_re: bool = True,
+                       interp_sim_traj_samples: int = 200,
+                       interp_sim_traj_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                       interp_sim_traj_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                       sim_app_pmf_df_col_x: str = COL_NAME_EXTENSION,
+                       align_sim_app_pmf: bool = True,
+                       align_sim_app_pmf_left_half_only: bool = False,       # Align the minima of left-half
+                       align_sim_app_pmf_right_half_only: bool = False,     # Align the minima of right-half
+                       plot_sim_app_sp: bool = True,
+                       plot_sim_app_pmf_re: bool = True,
                        sp_plot_title: str = "Splitting Probability (fold)",
                        pmf_plot_title: str = "PMF",
                        sp_theory_label: str = "Sp (Theory)",
-                       sp_sim_label: str = "Sp (Simulation-Traj)",
-                       sp_sim_interpolated_label: str = "Sp (Simulation-Traj-Interp)",
+                       sp_sim_traj_label: str = "Sp (Simulation-Traj)",
+                       sp_sim_app_label: str = "Sp (Simulation-App_PMF)",
+                       sp_sim_traj_interpolated_label: str = "Sp (Simulation-Traj-Interp)",
                        pmf_im_label: str = "PMF-Imposed (Theory)",
                        pmf_re_theory_label: str = "PMF-Recons (Theory)",
-                       pmf_re_sim_label: str = "PMF-Recons (Simulation-Traj)",
-                       pmf_re_sim_interpolated_label: str = "PMF-Recons (Simulation-Traj-Interp)"):
+                       pmf_re_sim_traj_label: str = "PMF-Recons (Simulation-Traj)",
+                       pmf_re_sim_traj_interpolated_label: str = "PMF-Recons (Simulation-Traj-Interp)",
+                       pmf_re_sim_app_label: str = "PMF-Recons (Simulation-App_PMF)", ):
     """
     Plots the Splitting Probabilities (SP) and reconstructed PMF(s) from Theory and Simulation Trajectory data
     on the same plot
@@ -296,11 +308,18 @@ def plot_sp_theory_sim(sp_theory_df: pd.DataFrame,
                         i.e. X, SP and PMF_RE columns
                         see "sp_impl.py" methods that save this data
 
-    :param sp_sim_df: pandas DataFrame with simulation data: X, Splitting Probability (SP)
+    :param sim_traj_df: (optional) pandas DataFrame with simulation Trajectory data: X, Splitting Probability (SP-traj)
                         and Reconstructed PMF (PMF_RE)
 
+    :param sim_app_pmf_df: (optional) pandas DataFrame with simulation data created with Apparent-PMF approach:
+                        X, Splitting Probability (SP-Apparent_PMF) and Reconstructed PMF (PMF_RE).
+                        This approach assumes Equilibrium and uses Boltzmann Inversion. the workflow is...
+
+                        -> SIm Trajectory -> PDF -> Apparent PMF -> Sp(apparent) -> Reconstructed PMF
+
     :param plot_pmf_im: whether to sample and plot Imposed-PMF
-    :param pmf_im_x_extra: extra length (in Angstrom) for sampling IMPOSED-PMF.
+    :param pmf_im_x_extra_left: extra length (in Angstrom) for sampling IMPOSED-PMF to the left.
+    :param pmf_im_x_extra_right: extra length (in Angstrom) for sampling IMPOSED-PMF to the right.
 
     :param out_file_name_prefix: (optional) prefix for output file names, like for saving newly created imposed PMF samples,
                                     interpolated simulation SP and reconstructed PMF.
@@ -308,25 +327,25 @@ def plot_sp_theory_sim(sp_theory_df: pd.DataFrame,
 
     :param out_fig_file: (optional) file to save the plot. If not specified, "{out_file_name_prefix}.pdf" is used
 
-    :param sim_data_col_x: column in "sim_data_df" to use as X (reaction coordinate)
-    :param interp_sim_sp: whether to interpolate simulation SP samples
-    :param interp_sim_pmf_re: whether to interpolate simulation reconstructed-PMF samples
-    :param interp_sim_samples: number of samples for interpolation of simulation data
+    :param sim_traj_df_col_x: column in "sim_data_df" to use as X (reaction coordinate)
+    :param interp_sim_traj_sp: whether to interpolate simulation SP samples
+    :param interp_sim_traj_pmf_re: whether to interpolate simulation reconstructed-PMF samples
+    :param interp_sim_traj_samples: number of samples for interpolation of simulation data
     """
 
-    x = sp_theory_df[COL_NAME_X].values
+    x_theory = sp_theory_df[COL_NAME_X].values
     sp_theory = sp_theory_df[COL_NAME_SP].values
-    pmf_re = sp_theory_df[COL_NAME_PMF_RE].values
+    pmf_re_theory = sp_theory_df[COL_NAME_PMF_RE].values
 
     pmf_im_x = None
     pmf_im = None
     if plot_pmf_im:
         # Imposed PMF domain
         no_extra_x = pmf_im_x_extra_left == 0 and pmf_im_x_extra_right == 0
-        pmf_im_x = x if no_extra_x else np.linspace(x[0] - pmf_im_x_extra_left,
-                                                    x[-1] + pmf_im_x_extra_right,
-                                                    num=x_integration_samples_sp_final_eq,
-                                                    endpoint=True)
+        pmf_im_x = x_theory if no_extra_x else np.linspace(x_theory[0] - pmf_im_x_extra_left,
+                                                           x_theory[-1] + pmf_im_x_extra_right,
+                                                           num=x_integration_samples_sp_final_eq,
+                                                           endpoint=True)
 
         pmf_im = _pmf(pmf_im_x)  # Imposed PMF
 
@@ -341,71 +360,132 @@ def plot_sp_theory_sim(sp_theory_df: pd.DataFrame,
             sp_impl.to_csv(df_pmf_im, _im_pmf_file_name)
             print(f"SP_EVAL: Writing Imposed-PMF samples to file \"{_im_pmf_file_name}\"")
 
-    x_sim = None
-    sp_sim = None
-    pmf_re_sim = None
-    x_sim_interp = None
-    sp_sim_interp = None
-    pmf_re_sim_interp = None
-    if sp_sim_df is not None:
-        x_sim = sp_sim_df[sim_data_col_x].values
-        sp_sim = sp_sim_df[COL_NAME_SP].values
-        pmf_re_sim = sp_sim_df[COL_NAME_PMF_RE].values
+    x_sim_traj = None
+    sp_sim_traj = None
+    pmf_re_sim_traj = None
+    x_sim_traj_interp = None
+    sp_sim_traj_interp = None
+    pmf_re_sim_traj_interp = None
+    if sim_traj_df is not None:
+        x_sim_traj = sim_traj_df[sim_traj_df_col_x].values
+        sp_sim_traj = sim_traj_df[COL_NAME_SP].values
+        pmf_re_sim_traj = sim_traj_df[COL_NAME_PMF_RE].values
 
-        if interp_sim_sp or interp_sim_pmf_re:
+        if interp_sim_traj_sp or interp_sim_traj_pmf_re:
             if out_file_name_prefix:
                 df_sim_interp = pd.DataFrame()
 
-            x_sim_interp = np.linspace(x_sim[0] - interp_sim_x_extra_left, x_sim[-1] + interp_sim_x_extra_right, interp_sim_samples)
+            x_sim_traj_interp = np.linspace(x_sim_traj[0] - interp_sim_traj_x_extra_left,
+                                            x_sim_traj[-1] + interp_sim_traj_x_extra_right, interp_sim_traj_samples)
             if out_file_name_prefix:
-                df_sim_interp[COL_NAME_X] = x_sim_interp
+                df_sim_interp[COL_NAME_X] = x_sim_traj_interp
 
-            if interp_sim_sp:
-                _sp_interp_func = scipy.interpolate.interp1d(x_sim, sp_sim, kind="quadratic",
+            if interp_sim_traj_sp:
+                _sp_interp_func = scipy.interpolate.interp1d(x_sim_traj, sp_sim_traj, kind="quadratic",
                                                              fill_value="extrapolate")
-                sp_sim_interp = _sp_interp_func(x_sim_interp)
+                sp_sim_traj_interp = _sp_interp_func(x_sim_traj_interp)
                 if out_file_name_prefix:
-                    df_sim_interp[COL_NAME_SP] = sp_sim_interp
+                    df_sim_interp[COL_NAME_SP] = sp_sim_traj_interp
 
-            if interp_sim_pmf_re:
-                _pmf_interp_func = scipy.interpolate.interp1d(x_sim, pmf_re_sim, kind="quadratic",
+            if interp_sim_traj_pmf_re:
+                _pmf_interp_func = scipy.interpolate.interp1d(x_sim_traj, pmf_re_sim_traj, kind="quadratic",
                                                               fill_value="extrapolate")
-                pmf_re_sim_interp = _pmf_interp_func(x_sim_interp)
+                pmf_re_sim_traj_interp = _pmf_interp_func(x_sim_traj_interp)
                 if out_file_name_prefix:
-                    df_sim_interp[COL_NAME_PMF_RE] = pmf_re_sim_interp
+                    df_sim_interp[COL_NAME_PMF_RE] = pmf_re_sim_traj_interp
 
             if out_file_name_prefix:
-                _sim_interp_file = f"{out_file_name_prefix}.sp_sim_interp.csv"
+                _sim_interp_file = f"{out_file_name_prefix}.sim_traj_interp.csv"
                 sp_impl.to_csv(df_sim_interp, _sim_interp_file)
                 print(
-                    f"SP_EVAL: Writing interpolated Simulation SP and Reconstructed-PMF samples to file \"{_sim_interp_file}\"")
+                    f"SP_EVAL: Writing interpolated Simulation-Trajectory SP and Reconstructed-PMF samples to file \"{_sim_interp_file}\"")
+
+    x_sim_app = None
+    sp_sim_app = None
+    pmf_re_sim_app = None
+    if sim_app_pmf_df is not None:
+        x_sim_app = sim_app_pmf_df[sim_app_pmf_df_col_x].values
+        sp_sim_app = sim_app_pmf_df[COL_NAME_SP].values
+        pmf_re_sim_app = sim_app_pmf_df[COL_NAME_PMF_RE].values
+        if align_sim_app_pmf:
+            # Align the minima of simulated_apparent_pmf_re with the minima of theory_pmf_re
+            x_ref, pmf_ref = (x_sim_traj_interp, pmf_re_sim_traj_interp) if pmf_re_sim_traj_interp is not None \
+                else (x_theory, pmf_re_theory)
+
+            # Taking only the left-half minima of reference
+            if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and  len(x_ref) > 4:
+                ref_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_ref) // 2
+                ref_i_end = len(x_ref) // 2 if align_sim_app_pmf_left_half_only else len(x_ref)
+                x_ref = x_ref[ref_i_start:ref_i_end]
+                pmf_ref = pmf_ref[ref_i_start:ref_i_end]
+
+            _ref_min_i = np.argmin(pmf_ref)
+            _ref_min_x = x_ref[_ref_min_i]
+            _ref_min_pmf_re = pmf_ref[_ref_min_i]
+
+            x_sim = x_sim_app
+            pmf_sim = pmf_re_sim_app
+            # Taking only the left-half minima of apparent_pmf_re
+            if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and len(x_sim) > 4:
+                sim_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_sim) // 2
+                sim_i_end = len(x_sim) // 2 if align_sim_app_pmf_left_half_only else len(x_sim)
+                x_sim = x_sim_app[sim_i_start:sim_i_end]
+                pmf_sim = pmf_re_sim_app[sim_i_start:sim_i_end]
+
+            _sim_app_min_i = np.argmin(pmf_sim)
+            _sim_app_min_x = x_sim[_sim_app_min_i]
+            _sim_app_min_pmf_re = pmf_sim[_sim_app_min_i]
+
+            x_sim_app -= (_sim_app_min_x - _ref_min_x)
+            pmf_re_sim_app -= (_sim_app_min_pmf_re - _ref_min_pmf_re)
+
+            # Create a new dataframe
+            sim_app_pmf_df = sim_app_pmf_df.copy(deep=True)
+            sim_app_pmf_df[sim_app_pmf_df_col_x] = x_sim_app
+            sim_app_pmf_df[COL_NAME_PMF_RE] = pmf_re_sim_app
+
+            _sim_app_pmf_file = f"{out_file_name_prefix}.sim_app_pmf_aligned.csv"
+            sp_impl.to_csv(sim_app_pmf_df, _sim_app_pmf_file)
+            print(f"SP_EVAL: writing Aligned Simulation-Apparent PMF samples to file \"{_sim_app_pmf_file}\"")
 
     w, h = figaspect(9 / 17)
     fig, axes = plt.subplots(1, 2, figsize=(w * 1.4, h * 1.4))
     fig.tight_layout(pad=5.0)
 
+    # SP Plot  -------------------------
     # axes[0].plot(x, sp_integrand, label=f"SP-INTEGRAND")
-    if sp_sim_df is not None:
-        axes[0].scatter(x_sim, sp_sim, label=sp_sim_label)
-        if sp_sim_interp is not None:
-            axes[0].plot(x_sim_interp, sp_sim_interp, "--", label=sp_sim_interpolated_label)
-    axes[0].plot(x, sp_theory, label=sp_theory_label)
+    if sim_traj_df is not None:
+        axes[0].scatter(x_sim_traj, sp_sim_traj, color="black", label=sp_sim_traj_label)
+        if plot_interp_sim_traj_sp and sp_sim_traj_interp is not None:
+            axes[0].plot(x_sim_traj_interp, sp_sim_traj_interp, "--", color="black",
+                         label=sp_sim_traj_interpolated_label)
+
+    if plot_sim_app_sp and sim_app_pmf_df is not None:
+        axes[0].plot(x_sim_app, sp_sim_app, label=sp_sim_app_label)
+
+    axes[0].plot(x_theory, sp_theory, label=sp_theory_label)
     axes[0].set_title(sp_plot_title)
     axes[0].set_xlabel("x (Å)")
     axes[0].set_ylabel("Sp(x)")
-    axes[0].legend(bbox_to_anchor=(0.2, 1.1), fontsize=7)
+    axes[0].legend(bbox_to_anchor=(0.2, 1.13), fontsize=7)
 
-    if sp_sim_df is not None:
-        axes[1].scatter(x_sim, pmf_re_sim, label=pmf_re_sim_label)
-        if pmf_re_sim_interp is not None:
-            axes[1].plot(x_sim_interp, pmf_re_sim_interp, "--", label=pmf_re_sim_interpolated_label)
-    axes[1].plot(x, pmf_re, label=pmf_re_theory_label)
+    # PMF Plot  --------------------------
+    if sim_traj_df is not None:
+        axes[1].scatter(x_sim_traj, pmf_re_sim_traj, color="black", label=pmf_re_sim_traj_label)
+        if plot_interp_sim_traj_pmf_re and pmf_re_sim_traj_interp is not None:
+            axes[1].plot(x_sim_traj_interp, pmf_re_sim_traj_interp, "--", color="black",
+                         label=pmf_re_sim_traj_interpolated_label)
+
+    if plot_sim_app_pmf_re and sim_app_pmf_df is not None:
+        axes[1].plot(x_sim_app, pmf_re_sim_app, label=pmf_re_sim_app_label)
+
+    axes[1].plot(x_theory, pmf_re_theory, label=pmf_re_theory_label)
     if plot_pmf_im and not (pmf_im_x is None or pmf_im is None):
         axes[1].plot(pmf_im_x, pmf_im, label=pmf_im_label)
     axes[1].set_title(pmf_plot_title)
     axes[1].set_xlabel("x (Å)")
     axes[1].set_ylabel("PMF(x) (kcal/mol)")
-    axes[1].legend(bbox_to_anchor=(1.1, 1.1), fontsize=7)
+    axes[1].legend(bbox_to_anchor=(1.1, 1.15), fontsize=7)
 
     if not out_fig_file and out_file_name_prefix:
         out_fig_file = f"{out_file_name_prefix}.pdf"
@@ -491,17 +571,24 @@ if __name__ == '__main__':
 
     ## Plotting Results -> SP and Reconstructed PMF from theory and simulation
     if 1:
-        sp_sim_df = sp_impl.read_csv("sp_traj1.2.csv")
-        sp_theory_df = sp_impl.read_csv("results-sp_app/sp_app-fit-1.2.csv")
+        sim_traj_df = sp_impl.read_csv("sp_traj2.2.csv")  # (optional)
+        sim_app_pmf_df = sp_impl.read_csv("sp_pmf2.csv")  # (optional)
+        sp_theory_df = sp_impl.read_csv("results-sp_app/sp_app-fit-2.2.csv")
 
         plot_sp_theory_sim(sp_theory_df=sp_theory_df,
-                           sp_sim_df=sp_sim_df,
-                           sim_data_col_x="EXT_BIN_MED",
-                           out_file_name_prefix="results-sp_app/sp_app-fit-1.2",
-                           interp_sim_sp=True,
-                           interp_sim_pmf_re=True,
-                           interp_sim_x_extra_left=0.7,
-                           interp_sim_x_extra_right=0.8,
+                           sim_traj_df=sim_traj_df,
+                           sim_traj_df_col_x=COL_NAME_EXT_BIN_MEDIAN,
+                           sim_app_pmf_df=sim_app_pmf_df,
+                           sim_app_pmf_df_col_x=COL_NAME_EXTENSION,
+                           out_file_name_prefix="results-sp_app/sp_app-fit-2.2",
+                           align_sim_app_pmf=True,
+                           align_sim_app_pmf_left_half_only=True,
+                           interp_sim_traj_sp=True,
+                           interp_sim_traj_pmf_re=True,
+                           plot_interp_sim_traj_sp=True,
+                           plot_interp_sim_traj_pmf_re=True,
+                           interp_sim_traj_x_extra_left=0.7,
+                           interp_sim_traj_x_extra_right=0.8,
                            plot_pmf_im=True,
                            pmf_im_x_extra_left=1.3,
                            pmf_im_x_extra_right=1.4)

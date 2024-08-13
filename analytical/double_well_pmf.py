@@ -3,6 +3,19 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
+"""
+Models Double-Well PMF with depth and bias parameters
+
+THe Double-Well PMF is modelled using the quantity phi(A, B, x) where A is the depth parameter
+and B is the bias parameter. It is given by the linear combination of even and odd solution of Weber equation
+
+        Φ(A,x) = y1(A,x) + bias * y2(A,x)
+
+The corresponding Probability Distribution and PMF are given as
+
+        Probability distribution Peq(x) = phi(A,x)^-2
+        PMF = -Kb * T * ln(Peq(x)) = 2 * Kb * T * ln(phi(A,x))
+"""
 
 def phi(x: np.ndarray,
         kb_t: float,
@@ -11,7 +24,7 @@ def phi(x: np.ndarray,
         bias: float) -> np.ndarray:
     """
     Calculates Φ(A,x) that represents Double-Well Potential.
-    It by the linear combination of even and odd solution of Weber equation
+    It is given by the linear combination of even and odd solution of Weber equation
 
         Φ(A,x) = y1(A,x) + bias * y2(A,x)
 
