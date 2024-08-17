@@ -1,594 +1,672 @@
-import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
 from matplotlib.figure import figaspect
 
+import C
 import sp_impl
+from C import mp_execute, read_csv, to_csv, COL_NAME_X, COL_NAME_X0, COL_NAME_EXTENSION, COL_NAME_EXT_BIN_MEDIAN, \
+    COL_NAME_SP, COL_NAME_PMF_IMPOSED, \
+    COL_NAME_PMF_RECONSTRUCTED, COL_NAME_TIME, COL_NAME_FIRST_PASS_TIME, COL_NAME_CONDITIONAL_PROBABILITY, \
+    COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X, DEFAULT_PROCESS_COUNT
 from double_well_pmf import phi_scaled
 from double_well_pmf_fit import load_fit_params
-from sp_impl import DEFAULT_PROCESS_COUNT, COL_NAME_X, COL_NAME_EXTENSION, COL_NAME_EXT_BIN_MEDIAN, COL_NAME_PMF_IM, \
-    COL_NAME_PMF_RE, COL_NAME_SP
 
 """
 Script to Evaluate quantities implemented in "sp_impl.py"
 
 1. Calculates theoretical Splitting Probability Sp(x) and Reconstructs the-PMF using
-    first-principles, final_exact_eq and apparent_pmf
+    1. first-principles
+    2. final_exact_eq
+    3. apparent_pmf implied by extension distribution
     
 2. Plot Theoretical and Simulation SP(x) and PMF_RECONSTRUCTED + PMF_IMPOSED
-
-search for TODO and set the required files/params 
 """
 
-## CONSTANTS -----------------------------
-Kb = 1.9872036e-3  # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10-3)
-T = 300  # Temperature (K)
-KbT = Kb * T  # kcal/mol
-Ks = 10  # Force constant (kcal/mol/Å**2)
-friction_coeff = 1e-7  # friction coeff (eta_1) (in kcal.sec/mol/Å**2). In range (0.5 - 2.38) x 10-7
-n_max = 10
-cyl_dn_a = 10  # "a" param of cylindrical function
-
-fit_params_file = "results-double_well_fit/fit_params-2.2.txt"  # TODO: set fit-params
-pmf_fit_params = load_fit_params(fit_params_file)
-depth, bias, x_offset, x_scale, phi_offset, phi_scale = pmf_fit_params
-
-## NOT USING OFFSETS FOR NOW
-# x_offset, x_scale  = 0, 1
-# phi_offset, phi_scale = 0, 1
-
-# PARAMS -------------------
-# NOTE: Optimal x_a and x_b
-# -> Without any offset and scales:
-#       x_a = -1.0, x_b = 0.87
-# -> With T4-DNA hairpin
-#       * "fit-params-1.1.txt"
-#           minima:  14.963448853268662, 24.210883674081007
-#           Optimal: x_a = 14.98, x_b = 24.19
-#       * "fit-params-1.2.txt"
-#           minima:  14.988497234334494, 24.25070294049196
-#           Optimal: x_a = 15.0, x_b = 24.23
-#       * "fit-params-2.1.txt"
-#           minima: 26.887663450991564, 38.00000736802938
-#       * "fit-params-2.2.txt"
-#           minima: 26.637210420334856, 38.45796438483576
-#           Optimal: x_a = 26.65, x_b = 38.41
-
-x_a = 26.65  # TODO: LEFT Boundary (Å)
-x_b = 38.41  # TODO: RIGHT Boundary (Å)
-x_integration_samples = 100
-x_integration_samples_sp_final_eq = 100000  # TODO: set integration sample count
-
-t_0 = 0  # Initial time
-x_0 = x_a  # Initially at left well
-
-time_instant_test = 1e-4  # time instant to calculate conditional probability at
-
-t_integration_start = t_0
-t_integration_stop = 1e-4
-t_integration_samples = 200
-
-d1 = KbT / friction_coeff  # diffusion coefficient with beta=1     (in Å**2/s)
-print(f"D1: {d1} Å**2/s")
-
-
-## Wrappers -----------------------------------------------------------------
-
-def _phi(x: np.ndarray | float):
-    return phi_scaled(x, kb_t=KbT, ks=Ks,
-                      depth=depth, bias=bias,
-                      x_offset=x_offset, x_scale=x_scale,
-                      phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-def _pmf(x: np.ndarray | float):
-    return 2 * KbT * np.log(_phi(x))
-
-
-def _cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
-                   x0: np.ndarray | float = x_0, t0: np.ndarray | float = t_0):
-    return sp_impl.cond_prob_vec(x, t, x0=x0, t0=t0,
-                                 n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                 kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                                 depth=depth, bias=bias,
-                                 x_offset=x_offset, x_scale=x_scale,
-                                 phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-def _cond_prob_integral_x_vec(x0: np.ndarray | float, t0: np.ndarray | float, t: np.ndarray | float):
-    return sp_impl.cond_prob_integral_x_vec(x0=x0, t0=t0, t=t,
-                                            x_a=x_a, x_b=x_b, x_samples=x_integration_samples,
-                                            n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                            kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                                            depth=depth, bias=bias,
-                                            x_offset=x_offset, x_scale=x_scale,
-                                            phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-def _first_pass_time_vec(x0: np.ndarray | float, t0: np.ndarray | float, t: np.ndarray | float):
-    return sp_impl.first_pass_time_vec(x0=x0, t0=t0, t=t,
-                                       x_a=x_a, x_b=x_b, x_samples=x_integration_samples,
-                                       n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                       kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                                       depth=depth, bias=bias,
-                                       x_offset=x_offset, x_scale=x_scale,
-                                       phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-# ==========================================================================================
-# ----------------------------  SPLITTING PROBABILITY Wrappers  ---------------------------
-# ==========================================================================================
-
-def sp_first_principle(out_data_file: str | None,
-                       x_a: float = x_a, x_b: float = x_b,
-                       x_integration_samples: int = x_integration_samples_sp_final_eq,
-                       process_count: int = DEFAULT_PROCESS_COUNT,
-                       return_sp_integrand: bool = True,
-                       reconstruct_pmf: bool = True) -> pd.DataFrame:
-    return sp_impl.sp_first_principle(x_a=x_a, x_b=x_b, x_integration_samples=x_integration_samples,
-                                      t0=t_0, t_start=t_integration_start, t_stop=t_integration_stop,
-                                      t_samples=t_integration_samples,
-                                      process_count=process_count,
-                                      return_sp_integrand=return_sp_integrand,
-                                      reconstruct_pmf=reconstruct_pmf,
-                                      out_data_file=out_data_file,
-                                      n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                      kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                                      depth=depth, bias=bias,
-                                      x_offset=x_offset, x_scale=x_scale,
-                                      phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-def sp_final_eq(out_data_file: str | None,
-                x_a: float = x_a, x_b: float = x_b,
-                x_integration_samples: int = x_integration_samples_sp_final_eq,
-                process_count: int = DEFAULT_PROCESS_COUNT,
-                return_sp_integrand: bool = True,
-                reconstruct_pmf: bool = True) -> pd.DataFrame:
-    return sp_impl.sp_final_eq(x_a=x_a, x_b=x_b,
-                               x_integration_samples=x_integration_samples,
-                               process_count=process_count,
-                               return_sp_integrand=return_sp_integrand,
-                               reconstruct_pmf=reconstruct_pmf,
-                               out_data_file=out_data_file,
-                               n_max=n_max, cyl_dn_a=cyl_dn_a,
-                               kb_t=KbT, ks=Ks, friction_coeff=friction_coeff,
-                               depth=depth, bias=bias,
-                               x_offset=x_offset, x_scale=x_scale,
-                               phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-def sp_apparent(out_data_file: str | None,
-                x_a: float = x_a, x_b: float = x_b,
-                x_integration_samples: int = x_integration_samples_sp_final_eq,
-                process_count: int = DEFAULT_PROCESS_COUNT,
-                return_sp_integrand: bool = True,
-                reconstruct_pmf: bool = True) -> pd.DataFrame:
-    return sp_impl.sp_apparent(x_a=x_a, x_b=x_b,
-                               x_integration_samples=x_integration_samples,
-                               process_count=process_count,
-                               return_sp_integrand=return_sp_integrand,
-                               reconstruct_pmf=reconstruct_pmf,
-                               out_data_file=out_data_file,
-                               kb_t=KbT, ks=Ks,
-                               depth=depth, bias=bias,
-                               x_offset=x_offset, x_scale=x_scale,
-                               phi_offset=phi_offset, phi_scale=phi_scale)
-
-
-# MAIN -----------------------------------------------------------------------------
-
-def cond_prob_integral_x_vs_x0_worker(x0: np.ndarray | float):
-    return _cond_prob_integral_x_vec(x0=x0, t0=t_0, t=time_instant_test)
-
-
-def cal_cond_prob_integral_x_vs_x0(out_data_file="results-sp_first_princ/cond_prob_int_x_vs_x0.csv",
-                                   out_fig_file="results-sp_first_princ/cond_prob_int_x_vs_x0.pdf"):
-    x0 = np.linspace(x_a, x_b, 100, endpoint=True)
-    y = sp_impl.mp_execute(cond_prob_integral_x_vs_x0_worker, x0, DEFAULT_PROCESS_COUNT)
-
-    df = pd.DataFrame({
-        "X0": x0,
-        "CP_INT_X": y
-    })
-
-    if out_data_file:
-        sp_impl.to_csv(df, out_data_file)
-
-    plt.plot(x0, y, label=f"t: {time_instant_test} s")
-    plt.xlabel("X0")
-    plt.ylabel("CP_INTx(x0, t0, t)")
-
-    plt.legend(loc="upper right")
-    if out_fig_file:
-        plt.savefig(out_fig_file)
-    plt.show()
-
-
-def cond_prob_integral_x_vs_t_worker(t: np.ndarray | float):
-    return _cond_prob_integral_x_vec(x0=x_0, t0=t_0, t=t)
-
-
-def cal_cond_prob_integral_x_vs_t(out_data_file="results-sp_first_princ/cond_prob_int_x_vs_t.csv",
-                                  out_fig_file="results-sp_first_princ/cond_prob_int_x_vs_t.pdf"):
-    t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
-    y = sp_impl.mp_execute(cond_prob_integral_x_vs_t_worker, t_arr, DEFAULT_PROCESS_COUNT)
-
-    df = pd.DataFrame({
-        "T": t_arr,
-        "CP_INT_X": y
-    })
-
-    if out_data_file:
-        sp_impl.to_csv(df, out_data_file)
-
-    plt.plot(t_arr, y, label=f"x0: {x_0} A | t0: {t_0} s")
-    plt.xlabel("t (s)")
-    plt.ylabel("CP_INTx(x0, t0, t)")
-
-    plt.legend(loc="upper right")
-    if out_fig_file:
-        plt.savefig(out_fig_file)
-    plt.show()
-
-
-def fpt_worker(t: np.ndarray):
-    return _first_pass_time_vec(x0=x_0, t0=t_0, t=t)
-
-
-# First passage time
-def cal_fpt(out_data_file="results-sp_first_princ/fpt_vs_t.csv",
-            out_fig_file="results-sp_first_princ/fpt_vs_t.pdf"):
-    # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
-
-    t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
-    y = sp_impl.mp_execute(fpt_worker, t_arr, DEFAULT_PROCESS_COUNT)
-
-    df = pd.DataFrame({
-        "T": t_arr,
-        "FPT": y
-    })
-
-    if out_data_file:
-        sp_impl.to_csv(df, out_data_file)
-
-    plt.plot(t_arr, y, label="FPT vs t")
-    plt.xlabel("Time (s)")
-    plt.ylabel("First Passage Time FPT(t)")
-
-    plt.legend(loc="upper right")
-    if out_fig_file:
-        plt.savefig(out_fig_file)
-    plt.show()
-
-
-def plot_sp_theory_sim(sp_theory_df: pd.DataFrame,
-                       sim_traj_df: pd.DataFrame | None,
-                       sim_app_pmf_df: pd.DataFrame | None,
-                       out_file_name_prefix: str | None,
-                       out_fig_file: str | None = "",
-                       plot_pmf_im: bool = True,
-                       pmf_im_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       pmf_im_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       sim_traj_df_col_x: str = COL_NAME_EXT_BIN_MEDIAN,
-                       interp_sim_traj_sp: bool = True,
-                       plot_interp_sim_traj_sp: bool = True,
-                       interp_sim_traj_pmf_re: bool = True,
-                       plot_interp_sim_traj_pmf_re: bool = True,
-                       interp_sim_traj_samples: int = 200,
-                       interp_sim_traj_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       interp_sim_traj_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
-                       sim_app_pmf_df_col_x: str = COL_NAME_EXTENSION,
-                       align_sim_app_pmf: bool = True,
-                       align_sim_app_pmf_left_half_only: bool = False,       # Align the minima of left-half
-                       align_sim_app_pmf_right_half_only: bool = False,     # Align the minima of right-half
-                       plot_sim_app_sp: bool = True,
-                       plot_sim_app_pmf_re: bool = True,
-                       sp_plot_title: str = "Splitting Probability (fold)",
-                       pmf_plot_title: str = "PMF",
-                       sp_theory_label: str = "Sp (Theory)",
-                       sp_sim_traj_label: str = "Sp (Simulation-Traj)",
-                       sp_sim_app_label: str = "Sp (Simulation-App_PMF)",
-                       sp_sim_traj_interpolated_label: str = "Sp (Simulation-Traj-Interp)",
-                       pmf_im_label: str = "PMF-Imposed (Theory)",
-                       pmf_re_theory_label: str = "PMF-Recons (Theory)",
-                       pmf_re_sim_traj_label: str = "PMF-Recons (Simulation-Traj)",
-                       pmf_re_sim_traj_interpolated_label: str = "PMF-Recons (Simulation-Traj-Interp)",
-                       pmf_re_sim_app_label: str = "PMF-Recons (Simulation-App_PMF)", ):
-    """
-    Plots the Splitting Probabilities (SP) and reconstructed PMF(s) from Theory and Simulation Trajectory data
-    on the same plot
-
-    -> Imposed PMF is sampled and saved to a file.
-    -> Simulation SP and reconstructed PMF are interpolated and the interpolated samples are saved to files
-
-    :param sp_theory_df: pandas DataFrame with theoretical Splitting Probability and Reconstructed PMF
-                        i.e. X, SP and PMF_RE columns
-                        see "sp_impl.py" methods that save this data
-
-    :param sim_traj_df: (optional) pandas DataFrame with simulation Trajectory data: X, Splitting Probability (SP-traj)
-                        and Reconstructed PMF (PMF_RE)
-
-    :param sim_app_pmf_df: (optional) pandas DataFrame with simulation data created with Apparent-PMF approach:
-                        X, Splitting Probability (SP-Apparent_PMF) and Reconstructed PMF (PMF_RE).
-                        This approach assumes Equilibrium and uses Boltzmann Inversion. the workflow is...
-
-                        -> SIm Trajectory -> PDF -> Apparent PMF -> Sp(apparent) -> Reconstructed PMF
-
-    :param plot_pmf_im: whether to sample and plot Imposed-PMF
-    :param pmf_im_x_extra_left: extra length (in Angstrom) for sampling IMPOSED-PMF to the left.
-    :param pmf_im_x_extra_right: extra length (in Angstrom) for sampling IMPOSED-PMF to the right.
-
-    :param out_file_name_prefix: (optional) prefix for output file names, like for saving newly created imposed PMF samples,
-                                    interpolated simulation SP and reconstructed PMF.
-                                    Set to "" or None to disable saving anything.
-
-    :param out_fig_file: (optional) file to save the plot. If not specified, "{out_file_name_prefix}.pdf" is used
-
-    :param sim_traj_df_col_x: column in "sim_data_df" to use as X (reaction coordinate)
-    :param interp_sim_traj_sp: whether to interpolate simulation SP samples
-    :param interp_sim_traj_pmf_re: whether to interpolate simulation reconstructed-PMF samples
-    :param interp_sim_traj_samples: number of samples for interpolation of simulation data
-    """
-
-    x_theory = sp_theory_df[COL_NAME_X].values
-    sp_theory = sp_theory_df[COL_NAME_SP].values
-    pmf_re_theory = sp_theory_df[COL_NAME_PMF_RE].values
-
-    pmf_im_x = None
-    pmf_im = None
-    if plot_pmf_im:
-        # Imposed PMF domain
-        no_extra_x = pmf_im_x_extra_left == 0 and pmf_im_x_extra_right == 0
-        pmf_im_x = x_theory if no_extra_x else np.linspace(x_theory[0] - pmf_im_x_extra_left,
-                                                           x_theory[-1] + pmf_im_x_extra_right,
-                                                           num=x_integration_samples_sp_final_eq,
-                                                           endpoint=True)
-
-        pmf_im = _pmf(pmf_im_x)  # Imposed PMF
-
-        # Save newly created Imposed-PMF samples to a file
-        if out_file_name_prefix:
-            df_pmf_im = pd.DataFrame({
-                COL_NAME_X: pmf_im_x,
-                COL_NAME_PMF_IM: pmf_im
+
+class SpEval:
+    def __init__(self, x_a: float, x_b: float, x_0: float, t_0: float, time_instant: float,
+                 n_max: int, cyl_dn_a: float,
+                 kb_t: float, ks: float, friction_coefficient: float,
+                 depth: float = -0.49, bias: float = 0,
+                 x_offset: float = 0, x_scale: float = 1,
+                 phi_offset: float = 0, phi_scale: float = 1,
+                 x_integration_samples_sp_first_princ: int = 100,
+                 x_integration_samples_sp_final_eq: int = 100000,
+                 time_integration_start: float = 0,
+                 time_integration_stop: float = 1e-4,
+                 time_integration_samples: int = 200):
+        """
+        @param x_a: LEFT absorbing Boundary (Å)
+        @param x_b: RIGHT absorbing Boundary (Å)
+        @param x_0: Initial Position (Å) used in First principle calculations. Mostly = LEFT or RIGHT well
+        @param t_0: Initial time (sec) used in First principle calculations
+        @param time_instant: Time instant (sec) at which some time-dependent properties are calculated
+
+        @param n_max: Max order term upto which to calculate FIRST-Principle and FINAL-EXACT equations
+        @param cyl_dn_a: "a" parameter of cylindrical D_n function. See {@link sp_impl.dn()}
+
+        @param kb_t: Thermal Energy (Kcal/mol)
+        @param ks: force-constant i.e. stiffness of optical trap (kcal/mol/Å**2)
+        @param friction_coefficient: coefficient of friction (kcal.sec/mol/Å**2), denoted by eta_1.
+                                     Optimal value In range (0.5 - 2.38) x 10-7
+
+        @param depth: "depth" parameter of the double-well pmf (unit-less). In range (-0.5, 0]
+        @param bias: "bias" parameter of the double-well pmf (unit-less). Must be < critical_bias(depth)
+        @param x_offset: "x_offset" of the double-well pmf (Å)
+        @param x_scale: "x_scale" of the double-well pmf (unit-less)
+        @param phi_offset: "phi_offset" of the double-well pmf
+        @param phi_scale: "phi_scale" of the double-well pmf
+
+        @param x_integration_samples_sp_first_princ: no. of integration samples in x for first-principle calculations.
+                                                     (expensive) Keep it low
+        @param x_integration_samples_sp_final_eq: no. of integration samples in x for final-equation calculations.
+                                                Keep it high for best accuracy
+        @param time_integration_start: start time of time-integrals in first-principle calculations
+        @param time_integration_stop: end time of time-integrals in first-principle calculations
+        @param time_integration_samples: no. of time samples for time-integrals in first-principle calculations
+        """
+        self.x_a = x_a  # TODO: LEFT Boundary (Å)
+        self.x_b = x_b  # TODO: RIGHT Boundary (Å)
+
+        self.x_0 = x_0  # Initially at left well
+        self.t_0 = t_0  # Initial time
+
+        self.time_instant = time_instant  # time instant to calculate conditional probability at
+
+        # Main parameters -----------------------------
+        self.kb_t = kb_t  # kcal/mol
+        self.ks = ks  # Force constant (kcal/mol/Å**2)
+        self.friction_coeff = friction_coefficient  # friction coeff (eta_1) (in kcal.sec/mol/Å**2). In range (0.5 - 2.38) x 10-7
+        self.n_max = n_max
+        self.cyl_dn_a = cyl_dn_a  # "a" param of cylindrical function
+
+        self.d1 = self.kb_t / self.friction_coeff  # diffusion coefficient with beta=1     (in Å**2/s)
+        print(f"Diffusion Coefficient D1: {self.d1} Å**2/s")
+
+        # Fit parameters
+        self.depth = depth
+        self.bias = bias
+        self.x_offset = x_offset
+        self.x_scale = x_scale
+        self.phi_offset = phi_offset
+        self.phi_scale = phi_scale
+
+        self.x_integration_samples = x_integration_samples_sp_first_princ
+        self.x_integration_samples_sp_final_eq = x_integration_samples_sp_final_eq  # TODO: set integration sample count
+
+        self.t_integration_start = time_integration_start
+        self.t_integration_stop = time_integration_stop
+        self.t_integration_samples = time_integration_samples
+
+    def set_pmf_params(self, depth, bias,
+                       x_offset, x_scale,
+                       phi_offset, phi_scale):
+        self.depth = depth
+        self.bias = bias
+        self.x_offset = x_offset
+        self.x_scale = x_scale
+        self.phi_offset = phi_offset
+        self.phi_scale = phi_scale
+
+        print("---------------------------------")
+        print("SP_EVAL: PMF Parameters changed")
+        _d = {'depth': depth,
+              'bias': bias,
+              'x_offset': x_offset,
+              'x_scale': x_scale,
+              'phi_offset': phi_offset,
+              'phi_scale': phi_scale}
+        for k, v in _d.items():
+            print(f" -> {k}: {v}")
+        print("---------------------------------")
+
+    def load_pmf_fit_params(self, fit_params_file):
+        self.set_pmf_params(*load_fit_params(fit_params_file))
+
+    # Wrappers -----------------------------------------------------------------
+
+    def phi(self, x: np.ndarray | float):
+        return phi_scaled(x=x, kb_t=self.kb_t, ks=self.ks,
+                          depth=self.depth, bias=self.bias,
+                          x_offset=self.x_offset, x_scale=self.x_scale,
+                          phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def pmf(self, x: np.ndarray | float):
+        return 2 * self.kb_t * np.log(self.phi(x))
+
+    def get_pmf_minima(self, x_start: float, x_stop: float, ret_min_value: bool = False):
+        return C.minimize_func(self.pmf, x_start=x_start, x_stop=x_stop, ret_min_value=ret_min_value)
+
+    def cond_prob(self, x: np.ndarray | float, t: np.ndarray | float,
+                  x0: np.ndarray | float | None = None, t0: np.ndarray | float | None = None):
+
+        if x0 is None:
+            x0 = self.x_0
+
+        if t0 is None:
+            t0 = self.t_0
+
+        return sp_impl.cond_prob_vec(x=x, t=t, x0=x0, t0=t0,
+                                     n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                     kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                     depth=self.depth, bias=self.bias,
+                                     x_offset=self.x_offset, x_scale=self.x_scale,
+                                     phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def cond_prob_integral_x(self, x0: np.ndarray | float, t0: np.ndarray | float | None = None,
+                             t: np.ndarray | float | None = None):
+        if t0 is None:
+            t0 = self.t_0
+
+        if t is None:
+            t = self.time_instant
+
+        return sp_impl.cond_prob_integral_x_vec(x0=x0, t0=t0, t=t,
+                                                x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples,
+                                                n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                                kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                                depth=self.depth, bias=self.bias,
+                                                x_offset=self.x_offset, x_scale=self.x_scale,
+                                                phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def first_pass_time(self, x0: np.ndarray | float, t0: np.ndarray | float | None = None,
+                        t: np.ndarray | float | None = None):
+        if t0 is None:
+            t0 = self.t_0
+
+        if t is None:
+            t = self.time_instant
+
+        return sp_impl.first_pass_time_vec(x0=x0, t0=t0, t=t,
+                                           x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples,
+                                           n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                           kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                           depth=self.depth, bias=self.bias,
+                                           x_offset=self.x_offset, x_scale=self.x_scale,
+                                           phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    # ==========================================================================================
+    # ----------------------------  SPLITTING PROBABILITY Wrappers  ---------------------------
+    # ==========================================================================================
+
+    def sp_first_principle(self, out_data_file: str | None,
+                           x_a: float | None = None, x_b: float | None = None,
+                           x_integration_samples: int | None = None,
+                           process_count: int = DEFAULT_PROCESS_COUNT,
+                           return_sp_integrand: bool = True,
+                           reconstruct_pmf: bool = True) -> pd.DataFrame:
+        if x_a is None:
+            x_a = self.x_a
+
+        if x_b is None:
+            x_b = self.x_b
+
+        if x_integration_samples is None or x_integration_samples < 1:
+            x_integration_samples = self.x_integration_samples_sp_final_eq
+
+        return sp_impl.sp_first_principle(x_a=x_a, x_b=x_b, x_integration_samples=x_integration_samples,
+                                          t0=self.t_0, t_start=self.t_integration_start, t_stop=self.t_integration_stop,
+                                          t_samples=self.t_integration_samples,
+                                          process_count=process_count,
+                                          return_sp_integrand=return_sp_integrand,
+                                          reconstruct_pmf=reconstruct_pmf,
+                                          out_data_file=out_data_file,
+                                          n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                          kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                          depth=self.depth, bias=self.bias,
+                                          x_offset=self.x_offset, x_scale=self.x_scale,
+                                          phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def sp_final_eq(self, out_data_file: str | None,
+                    x_a: float | None = None, x_b: float | None = None,
+                    x_integration_samples: int | None = None,
+                    process_count: int = DEFAULT_PROCESS_COUNT,
+                    return_sp_integrand: bool = True,
+                    reconstruct_pmf: bool = True) -> pd.DataFrame:
+
+        if x_a is None:
+            x_a = self.x_a
+
+        if x_b is None:
+            x_b = self.x_b
+
+        if x_integration_samples is None or x_integration_samples < 1:
+            x_integration_samples = self.x_integration_samples_sp_final_eq
+
+        return sp_impl.sp_final_eq(x_a=x_a, x_b=x_b,
+                                   x_integration_samples=x_integration_samples,
+                                   process_count=process_count,
+                                   return_sp_integrand=return_sp_integrand,
+                                   reconstruct_pmf=reconstruct_pmf,
+                                   out_data_file=out_data_file,
+                                   n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                   kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                   depth=self.depth, bias=self.bias,
+                                   x_offset=self.x_offset, x_scale=self.x_scale,
+                                   phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def sp_apparent(self, out_data_file: str | None,
+                    x_a: float | None = None, x_b: float | None = None,
+                    x_integration_samples: int | None = None,
+                    process_count: int = DEFAULT_PROCESS_COUNT,
+                    return_sp_integrand: bool = True,
+                    reconstruct_pmf: bool = True) -> pd.DataFrame:
+
+        if x_a is None:
+            x_a = self.x_a
+
+        if x_b is None:
+            x_b = self.x_b
+
+        if x_integration_samples is None or x_integration_samples < 1:
+            x_integration_samples = self.x_integration_samples_sp_final_eq
+
+        return sp_impl.sp_apparent(x_a=x_a, x_b=x_b,
+                                   x_integration_samples=x_integration_samples,
+                                   process_count=process_count,
+                                   return_sp_integrand=return_sp_integrand,
+                                   reconstruct_pmf=reconstruct_pmf,
+                                   out_data_file=out_data_file,
+                                   kb_t=self.kb_t, ks=self.ks,
+                                   depth=self.depth, bias=self.bias,
+                                   x_offset=self.x_offset, x_scale=self.x_scale,
+                                   phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    # FIRST-Principle TEST METHODS -----------------------------------------------------------
+
+    def _cond_prob_integral_x_vs_x0_worker(self, x0: np.ndarray | float):
+        return self.cond_prob_integral_x(x0=x0, t0=self.t_0, t=self.time_instant)
+
+    def cal_cond_prob_integral_x_vs_x0(self, out_data_file: str | None, out_fig_file: str | None):
+        x0 = np.linspace(self.x_a, self.x_b, 100, endpoint=True)
+        y = mp_execute(self._cond_prob_integral_x_vs_x0_worker, x0, DEFAULT_PROCESS_COUNT)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_X0: x0,
+                COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X: y
             })
 
-            _im_pmf_file_name = f"{out_file_name_prefix}.pmf_im.csv"
-            sp_impl.to_csv(df_pmf_im, _im_pmf_file_name)
-            print(f"SP_EVAL: Writing Imposed-PMF samples to file \"{_im_pmf_file_name}\"")
+            to_csv(df, out_data_file)
 
-    x_sim_traj = None
-    sp_sim_traj = None
-    pmf_re_sim_traj = None
-    x_sim_traj_interp = None
-    sp_sim_traj_interp = None
-    pmf_re_sim_traj_interp = None
-    if sim_traj_df is not None:
-        x_sim_traj = sim_traj_df[sim_traj_df_col_x].values
-        sp_sim_traj = sim_traj_df[COL_NAME_SP].values
-        pmf_re_sim_traj = sim_traj_df[COL_NAME_PMF_RE].values
+        plt.plot(x0, y, label=f"t: {self.time_instant} s")
+        plt.xlabel("X0")
+        plt.ylabel("CP_INTx(x0, t0, t)")
 
-        if interp_sim_traj_sp or interp_sim_traj_pmf_re:
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    def _cond_prob_integral_x_vs_t_worker(self, t: np.ndarray | float):
+        return self.cond_prob_integral_x(x0=self.x_0, t0=self.t_0, t=t)
+
+    def cal_cond_prob_integral_x_vs_t(self, out_data_file: str | None, out_fig_file: str | None):
+        t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
+        y = mp_execute(self._cond_prob_integral_x_vs_t_worker, t_arr, DEFAULT_PROCESS_COUNT)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_TIME: t_arr,
+                COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X: y
+            })
+
+            to_csv(df, out_data_file)
+
+        plt.plot(t_arr, y, label=f"x0: {self.x_0} A | t0: {self.t_0} s")
+        plt.xlabel("t (s)")
+        plt.ylabel("CP_INTx(x0, t0, t)")
+
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    def _fpt_worker(self, t: np.ndarray):
+        return self.first_pass_time(x0=self.x_0, t0=self.t_0, t=t)
+
+    # First passage time
+    def cal_fpt(self, out_data_file: str | None, out_fig_file: str | None):
+        # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
+
+        t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
+        y = mp_execute(self._fpt_worker, t_arr, DEFAULT_PROCESS_COUNT)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_TIME: t_arr,
+                COL_NAME_FIRST_PASS_TIME: y
+            })
+
+            to_csv(df, out_data_file)
+
+        plt.plot(t_arr, y, label="FPT vs t")
+        plt.xlabel("Time (s)")
+        plt.ylabel("First Passage Time FPT(t)")
+
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    # PLOTTING -------------------------------------------------------------------------------
+
+    def plot_pmf_imposed(self, out_data_file: str | None, out_fig_file: str | None):
+        x = np.linspace(self.x_a, self.x_b, 100, endpoint=True)
+        y = self.pmf(x)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_X: x,
+                COL_NAME_PMF_IMPOSED: y
+            })
+
+            to_csv(df, out_data_file)
+
+        plt.plot(x, y, label="PMF-IM")
+        plt.xlabel("x (Å)")
+        plt.ylabel("PMF(x) (kcal/mol)")
+
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    def plot_pmf_reconstructed(self, pmf_vs_x_dat_file, output_fig_file):
+        df = read_csv(pmf_vs_x_dat_file)
+        x = df[COL_NAME_X]
+        pmf_re = df[COL_NAME_PMF_RECONSTRUCTED]
+        pmf = self.pmf(x)
+
+        plt.plot(x, pmf, label="PMF-IM")
+        plt.plot(x, pmf_re, label="PMF-RE")
+
+        plt.xlabel("x (Å)")
+        plt.ylabel("PMF(x) (kcal/mol)")
+        plt.legend(loc="upper right")
+        if output_fig_file:
+            plt.savefig(output_fig_file)
+        plt.show()
+
+    def plot_cond_prob(self, out_data_file: str | None, out_fig_file: str | None, x_sample_count: int = 100):
+        x = np.linspace(self.x_a, self.x_b, x_sample_count, endpoint=True)
+        y = self.cond_prob(x, t=self.time_instant, x0=self.x_0, t0=self.t_0)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_X: x,
+                COL_NAME_CONDITIONAL_PROBABILITY: y
+            })
+
+            to_csv(df, out_data_file)
+
+        plt.plot(x, y, label=f"t: {self.time_instant} s, x0: {self.x_0} A, t0: {self.t_0} s")
+        plt.xlabel("x (Å)")
+        plt.ylabel("P(x, t, x0, t0)")
+
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    def plot_sp_theory_sim(self, sp_theory_df: pd.DataFrame,
+                           sim_traj_df: pd.DataFrame | None,
+                           sim_app_pmf_df: pd.DataFrame | None,
+                           out_file_name_prefix: str | None,
+                           out_fig_file: str | None = "",
+                           plot_pmf_im: bool = True,
+                           pmf_im_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                           pmf_im_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                           sim_traj_df_col_x: str = COL_NAME_EXT_BIN_MEDIAN,
+                           interp_sim_traj_sp: bool = True,
+                           plot_interp_sim_traj_sp: bool = True,
+                           interp_sim_traj_pmf_re: bool = True,
+                           plot_interp_sim_traj_pmf_re: bool = True,
+                           interp_sim_traj_samples: int = 200,
+                           interp_sim_traj_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                           interp_sim_traj_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
+                           sim_app_pmf_df_col_x: str = COL_NAME_EXTENSION,
+                           align_sim_app_pmf: bool = True,
+                           align_sim_app_pmf_left_half_only: bool = False,  # Align the minima of left-half
+                           align_sim_app_pmf_right_half_only: bool = False,  # Align the minima of right-half
+                           plot_sim_app_sp: bool = True,
+                           plot_sim_app_pmf_re: bool = True,
+                           sp_plot_title: str = "Splitting Probability (fold)",
+                           pmf_plot_title: str = "PMF",
+                           sp_theory_label: str = "Sp (Theory)",
+                           sp_sim_traj_label: str = "Sp (Simulation-Traj)",
+                           sp_sim_app_label: str = "Sp (Simulation-App_PMF)",
+                           sp_sim_traj_interpolated_label: str = "Sp (Simulation-Traj-Interp)",
+                           pmf_im_label: str = "PMF-Imposed (Theory)",
+                           pmf_re_theory_label: str = "PMF-Recons (Theory)",
+                           pmf_re_sim_traj_label: str = "PMF-Recons (Simulation-Traj)",
+                           pmf_re_sim_traj_interpolated_label: str = "PMF-Recons (Simulation-Traj-Interp)",
+                           pmf_re_sim_app_label: str = "PMF-Recons (Simulation-App_PMF)", ):
+        """
+        Plots the Splitting Probabilities (SP) and reconstructed PMF(s) from Theory and Simulation Trajectory data
+        on the same plot
+
+        In any case, PMF can be reconstructed from SP automatically if not-present, and hence not required
+
+        -> Imposed PMF is sampled and saved to a file.
+        -> Simulation SP and reconstructed PMF are interpolated and the interpolated samples are saved to files
+
+        :param sp_theory_df: pandas DataFrame with theoretical Splitting Probability and Reconstructed PMF (optional)
+                            i.e. X, SP and PMF_RE (optional) columns
+                            see "sp_impl.py" methods that save this data
+
+        :param sim_traj_df: (optional) pandas DataFrame with simulation Trajectory data: X, Splitting Probability (SP-traj)
+                            and Reconstructed PMF (PMF_RE) (optional)
+
+        :param sim_app_pmf_df: (optional) pandas DataFrame with simulation data created with Apparent-PMF approach:
+                            X, Splitting Probability (SP-Apparent_PMF) and Reconstructed PMF (PMF_RE).(optional)
+                            This approach assumes Equilibrium and uses Boltzmann Inversion. the workflow is...
+
+                            -> SIm Trajectory -> PDF -> Apparent PMF -> Sp(apparent) -> Reconstructed PMF
+
+        :param plot_pmf_im: whether to sample and plot Imposed-PMF
+        :param pmf_im_x_extra_left: extra length (in Angstrom) for sampling IMPOSED-PMF to the left.
+        :param pmf_im_x_extra_right: extra length (in Angstrom) for sampling IMPOSED-PMF to the right.
+
+        :param out_file_name_prefix: (optional) prefix for output file names, like for saving newly created imposed PMF samples,
+                                        interpolated simulation SP and reconstructed PMF.
+                                        Set to "" or None to disable saving anything.
+
+        :param out_fig_file: (optional) file to save the plot. If not specified, "{out_file_name_prefix}.pdf" is used
+
+        :param sim_traj_df_col_x: column in "sim_data_df" to use as X (reaction coordinate)
+        :param interp_sim_traj_sp: whether to interpolate simulation SP samples
+        :param interp_sim_traj_pmf_re: whether to interpolate simulation reconstructed-PMF samples
+        :param interp_sim_traj_samples: number of samples for interpolation of simulation data
+        """
+
+        x_theory = sp_theory_df[COL_NAME_X].values
+        sp_theory = sp_theory_df[COL_NAME_SP].values
+
+        if COL_NAME_PMF_RECONSTRUCTED in sp_theory_df.columns:
+            pmf_re_theory = sp_theory_df[COL_NAME_PMF_RECONSTRUCTED].values
+        else:
+            # Reconstructing PMF automatically
+            pmf_re_theory = sp_impl.pmf_re(x=x_theory, sp=sp_theory, kb_t=self.kb_t)
+            sp_theory_df[COL_NAME_PMF_RECONSTRUCTED] = pmf_re_theory
+
+        pmf_im_x = None
+        pmf_im = None
+        if plot_pmf_im:
+            # Imposed PMF domain
+            no_extra_x = pmf_im_x_extra_left == 0 and pmf_im_x_extra_right == 0
+            samples_per_x = len(x_theory) / abs(x_theory[-1] - x_theory[0])
+
+            pmf_im_x = x_theory if no_extra_x else np.concatenate((np.linspace(x_theory[0] - pmf_im_x_extra_left,
+                                                                              x_theory[0],
+                                                                              num=max(1, round( abs(samples_per_x * pmf_im_x_extra_left))),
+                                                                              endpoint=False),
+                                                                  x_theory,
+                                                                  np.linspace(x_theory[-1] + (1 / samples_per_x),
+                                                                              x_theory[-1] + pmf_im_x_extra_right,
+                                                                              num=max(1, round(abs(samples_per_x * pmf_im_x_extra_right))),
+                                                                              endpoint=True)))
+
+            pmf_im = self.pmf(pmf_im_x)  # Imposed PMF
+
+            # Save newly created Imposed-PMF samples to a file
             if out_file_name_prefix:
-                df_sim_interp = pd.DataFrame()
+                df_pmf_im = pd.DataFrame({
+                    COL_NAME_X: pmf_im_x,
+                    COL_NAME_PMF_IMPOSED: pmf_im
+                })
 
-            x_sim_traj_interp = np.linspace(x_sim_traj[0] - interp_sim_traj_x_extra_left,
-                                            x_sim_traj[-1] + interp_sim_traj_x_extra_right, interp_sim_traj_samples)
-            if out_file_name_prefix:
-                df_sim_interp[COL_NAME_X] = x_sim_traj_interp
+                _im_pmf_file_name = f"{out_file_name_prefix}.pmf_im.csv"
+                to_csv(df_pmf_im, _im_pmf_file_name)
+                print(f"SP_EVAL: Writing Imposed-PMF samples to file \"{_im_pmf_file_name}\"")
 
-            if interp_sim_traj_sp:
-                _sp_interp_func = scipy.interpolate.interp1d(x_sim_traj, sp_sim_traj, kind="quadratic",
-                                                             fill_value="extrapolate")
-                sp_sim_traj_interp = _sp_interp_func(x_sim_traj_interp)
+        x_sim_traj = None
+        sp_sim_traj = None
+        pmf_re_sim_traj = None
+        x_sim_traj_interp = None
+        sp_sim_traj_interp = None
+        pmf_re_sim_traj_interp = None
+        if sim_traj_df is not None:
+            x_sim_traj = sim_traj_df[sim_traj_df_col_x].values
+            sp_sim_traj = sim_traj_df[COL_NAME_SP].values
+
+            if COL_NAME_PMF_RECONSTRUCTED in sim_traj_df.columns:
+                pmf_re_sim_traj = sim_traj_df[COL_NAME_PMF_RECONSTRUCTED].values
+            else:
+                # Reconstructing PMF automatically
+                pmf_re_sim_traj = sp_impl.pmf_re(x=x_sim_traj, sp=sp_sim_traj, kb_t=self.kb_t)
+                sim_traj_df[COL_NAME_PMF_RECONSTRUCTED] = pmf_re_sim_traj
+
+            if interp_sim_traj_sp or interp_sim_traj_pmf_re:
                 if out_file_name_prefix:
-                    df_sim_interp[COL_NAME_SP] = sp_sim_traj_interp
+                    df_sim_interp = pd.DataFrame()
 
-            if interp_sim_traj_pmf_re:
-                _pmf_interp_func = scipy.interpolate.interp1d(x_sim_traj, pmf_re_sim_traj, kind="quadratic",
-                                                              fill_value="extrapolate")
-                pmf_re_sim_traj_interp = _pmf_interp_func(x_sim_traj_interp)
+                x_sim_traj_interp = np.linspace(x_sim_traj[0] - interp_sim_traj_x_extra_left,
+                                                x_sim_traj[-1] + interp_sim_traj_x_extra_right, interp_sim_traj_samples)
                 if out_file_name_prefix:
-                    df_sim_interp[COL_NAME_PMF_RE] = pmf_re_sim_traj_interp
+                    df_sim_interp[COL_NAME_X] = x_sim_traj_interp
 
-            if out_file_name_prefix:
-                _sim_interp_file = f"{out_file_name_prefix}.sim_traj_interp.csv"
-                sp_impl.to_csv(df_sim_interp, _sim_interp_file)
-                print(
-                    f"SP_EVAL: Writing interpolated Simulation-Trajectory SP and Reconstructed-PMF samples to file \"{_sim_interp_file}\"")
+                if interp_sim_traj_sp:
+                    _sp_interp_func = scipy.interpolate.interp1d(x_sim_traj, sp_sim_traj, kind="quadratic",
+                                                                 fill_value="extrapolate")
+                    sp_sim_traj_interp = _sp_interp_func(x_sim_traj_interp)
+                    if out_file_name_prefix:
+                        df_sim_interp[COL_NAME_SP] = sp_sim_traj_interp
 
-    x_sim_app = None
-    sp_sim_app = None
-    pmf_re_sim_app = None
-    if sim_app_pmf_df is not None:
-        x_sim_app = sim_app_pmf_df[sim_app_pmf_df_col_x].values
-        sp_sim_app = sim_app_pmf_df[COL_NAME_SP].values
-        pmf_re_sim_app = sim_app_pmf_df[COL_NAME_PMF_RE].values
-        if align_sim_app_pmf:
-            # Align the minima of simulated_apparent_pmf_re with the minima of theory_pmf_re
-            x_ref, pmf_ref = (x_sim_traj_interp, pmf_re_sim_traj_interp) if pmf_re_sim_traj_interp is not None \
-                else (x_theory, pmf_re_theory)
+                if interp_sim_traj_pmf_re:
+                    _pmf_interp_func = scipy.interpolate.interp1d(x_sim_traj, pmf_re_sim_traj, kind="quadratic",
+                                                                  fill_value="extrapolate")
+                    pmf_re_sim_traj_interp = _pmf_interp_func(x_sim_traj_interp)
+                    if out_file_name_prefix:
+                        df_sim_interp[COL_NAME_PMF_RECONSTRUCTED] = pmf_re_sim_traj_interp
 
-            # Taking only the left-half minima of reference
-            if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and  len(x_ref) > 4:
-                ref_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_ref) // 2
-                ref_i_end = len(x_ref) // 2 if align_sim_app_pmf_left_half_only else len(x_ref)
-                x_ref = x_ref[ref_i_start:ref_i_end]
-                pmf_ref = pmf_ref[ref_i_start:ref_i_end]
+                if out_file_name_prefix:
+                    _sim_interp_file = f"{out_file_name_prefix}.sim_traj_interp.csv"
+                    to_csv(df_sim_interp, _sim_interp_file)
+                    print(
+                        f"SP_EVAL: Writing interpolated Simulation-Trajectory SP and Reconstructed-PMF samples to file \"{_sim_interp_file}\"")
 
-            _ref_min_i = np.argmin(pmf_ref)
-            _ref_min_x = x_ref[_ref_min_i]
-            _ref_min_pmf_re = pmf_ref[_ref_min_i]
+        x_sim_app = None
+        sp_sim_app = None
+        pmf_re_sim_app = None
+        if sim_app_pmf_df is not None:
+            x_sim_app = sim_app_pmf_df[sim_app_pmf_df_col_x].values
+            sp_sim_app = sim_app_pmf_df[COL_NAME_SP].values
 
-            x_sim = x_sim_app
-            pmf_sim = pmf_re_sim_app
-            # Taking only the left-half minima of apparent_pmf_re
-            if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and len(x_sim) > 4:
-                sim_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_sim) // 2
-                sim_i_end = len(x_sim) // 2 if align_sim_app_pmf_left_half_only else len(x_sim)
-                x_sim = x_sim_app[sim_i_start:sim_i_end]
-                pmf_sim = pmf_re_sim_app[sim_i_start:sim_i_end]
+            if COL_NAME_PMF_RECONSTRUCTED in sim_app_pmf_df.columns:
+                pmf_re_sim_app = sim_app_pmf_df[COL_NAME_PMF_RECONSTRUCTED].values
+            else:
+                # Reconstructing PMF automatically
+                pmf_re_sim_app = sp_impl.pmf_re(x=x_sim_app, sp=sp_sim_app, kb_t=self.kb_t)
+                sim_app_pmf_df[COL_NAME_PMF_RECONSTRUCTED] = pmf_re_sim_app
 
-            _sim_app_min_i = np.argmin(pmf_sim)
-            _sim_app_min_x = x_sim[_sim_app_min_i]
-            _sim_app_min_pmf_re = pmf_sim[_sim_app_min_i]
+            if align_sim_app_pmf:
+                # Align the minima of simulated_apparent_pmf_re with the minima of theory_pmf_re
+                x_ref, pmf_ref = (x_sim_traj_interp, pmf_re_sim_traj_interp) if pmf_re_sim_traj_interp is not None \
+                    else (x_theory, pmf_re_theory)
 
-            x_sim_app -= (_sim_app_min_x - _ref_min_x)
-            pmf_re_sim_app -= (_sim_app_min_pmf_re - _ref_min_pmf_re)
+                # Taking only the left-half minima of reference
+                if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and len(x_ref) > 4:
+                    ref_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_ref) // 2
+                    ref_i_end = len(x_ref) // 2 if align_sim_app_pmf_left_half_only else len(x_ref)
+                    x_ref = x_ref[ref_i_start:ref_i_end]
+                    pmf_ref = pmf_ref[ref_i_start:ref_i_end]
 
-            # Create a new dataframe
-            sim_app_pmf_df = sim_app_pmf_df.copy(deep=True)
-            sim_app_pmf_df[sim_app_pmf_df_col_x] = x_sim_app
-            sim_app_pmf_df[COL_NAME_PMF_RE] = pmf_re_sim_app
+                _ref_min_i = np.argmin(pmf_ref)
+                _ref_min_x = x_ref[_ref_min_i]
+                _ref_min_pmf_re = pmf_ref[_ref_min_i]
 
-            _sim_app_pmf_file = f"{out_file_name_prefix}.sim_app_pmf_aligned.csv"
-            sp_impl.to_csv(sim_app_pmf_df, _sim_app_pmf_file)
-            print(f"SP_EVAL: writing Aligned Simulation-Apparent PMF samples to file \"{_sim_app_pmf_file}\"")
+                x_sim = x_sim_app
+                pmf_sim = pmf_re_sim_app
+                # Taking only the left-half minima of apparent_pmf_re
+                if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and len(x_sim) > 4:
+                    sim_i_start = 0 if align_sim_app_pmf_left_half_only else len(x_sim) // 2
+                    sim_i_end = len(x_sim) // 2 if align_sim_app_pmf_left_half_only else len(x_sim)
+                    x_sim = x_sim_app[sim_i_start:sim_i_end]
+                    pmf_sim = pmf_re_sim_app[sim_i_start:sim_i_end]
 
-    w, h = figaspect(9 / 17)
-    fig, axes = plt.subplots(1, 2, figsize=(w * 1.4, h * 1.4))
-    fig.tight_layout(pad=5.0)
+                _sim_app_min_i = np.argmin(pmf_sim)
+                _sim_app_min_x = x_sim[_sim_app_min_i]
+                _sim_app_min_pmf_re = pmf_sim[_sim_app_min_i]
 
-    # SP Plot  -------------------------
-    # axes[0].plot(x, sp_integrand, label=f"SP-INTEGRAND")
-    if sim_traj_df is not None:
-        axes[0].scatter(x_sim_traj, sp_sim_traj, color="black", label=sp_sim_traj_label)
-        if plot_interp_sim_traj_sp and sp_sim_traj_interp is not None:
-            axes[0].plot(x_sim_traj_interp, sp_sim_traj_interp, "--", color="black",
-                         label=sp_sim_traj_interpolated_label)
+                x_sim_app -= (_sim_app_min_x - _ref_min_x)
+                pmf_re_sim_app -= (_sim_app_min_pmf_re - _ref_min_pmf_re)
 
-    if plot_sim_app_sp and sim_app_pmf_df is not None:
-        axes[0].plot(x_sim_app, sp_sim_app, label=sp_sim_app_label)
+                # Create a new dataframe
+                sim_app_pmf_df = sim_app_pmf_df.copy(deep=True)
+                sim_app_pmf_df[sim_app_pmf_df_col_x] = x_sim_app
+                sim_app_pmf_df[COL_NAME_PMF_RECONSTRUCTED] = pmf_re_sim_app
 
-    axes[0].plot(x_theory, sp_theory, label=sp_theory_label)
-    axes[0].set_title(sp_plot_title)
-    axes[0].set_xlabel("x (Å)")
-    axes[0].set_ylabel("Sp(x)")
-    axes[0].legend(bbox_to_anchor=(0.2, 1.13), fontsize=7)
+                _sim_app_pmf_file = f"{out_file_name_prefix}.sim_app_pmf_aligned.csv"
+                to_csv(sim_app_pmf_df, _sim_app_pmf_file)
+                print(f"SP_EVAL: writing Aligned Simulation-Apparent PMF samples to file \"{_sim_app_pmf_file}\"")
 
-    # PMF Plot  --------------------------
-    if sim_traj_df is not None:
-        axes[1].scatter(x_sim_traj, pmf_re_sim_traj, color="black", label=pmf_re_sim_traj_label)
-        if plot_interp_sim_traj_pmf_re and pmf_re_sim_traj_interp is not None:
-            axes[1].plot(x_sim_traj_interp, pmf_re_sim_traj_interp, "--", color="black",
-                         label=pmf_re_sim_traj_interpolated_label)
+        w, h = figaspect(9 / 17)
+        fig, axes = plt.subplots(1, 2, figsize=(w * 1.4, h * 1.4))
+        fig.tight_layout(pad=5.0)
 
-    if plot_sim_app_pmf_re and sim_app_pmf_df is not None:
-        axes[1].plot(x_sim_app, pmf_re_sim_app, label=pmf_re_sim_app_label)
+        # SP Plot  -------------------------
+        # axes[0].plot(x, sp_integrand, label=f"SP-INTEGRAND")
+        if sim_traj_df is not None:
+            axes[0].scatter(x_sim_traj, sp_sim_traj, color="black", label=sp_sim_traj_label)
+            if plot_interp_sim_traj_sp and sp_sim_traj_interp is not None:
+                axes[0].plot(x_sim_traj_interp, sp_sim_traj_interp, linestyle="dotted", color="black",
+                             label=sp_sim_traj_interpolated_label)
 
-    axes[1].plot(x_theory, pmf_re_theory, label=pmf_re_theory_label)
-    if plot_pmf_im and not (pmf_im_x is None or pmf_im is None):
-        axes[1].plot(pmf_im_x, pmf_im, label=pmf_im_label)
-    axes[1].set_title(pmf_plot_title)
-    axes[1].set_xlabel("x (Å)")
-    axes[1].set_ylabel("PMF(x) (kcal/mol)")
-    axes[1].legend(bbox_to_anchor=(1.1, 1.15), fontsize=7)
+        if plot_sim_app_sp and sim_app_pmf_df is not None:
+            axes[0].plot(x_sim_app, sp_sim_app, label=sp_sim_app_label)
 
-    if not out_fig_file and out_file_name_prefix:
-        out_fig_file = f"{out_file_name_prefix}.pdf"
+        axes[0].plot(x_theory, sp_theory, label=sp_theory_label)
+        axes[0].set_title(sp_plot_title)
+        axes[0].set_xlabel("x (Å)")
+        axes[0].set_ylabel("Sp(x)")
+        axes[0].legend(bbox_to_anchor=(0.2, 1.13), fontsize=7)
 
-    if out_fig_file:
-        plt.savefig(out_fig_file)
-        print(f"SP_EVAL: SP and Reconstructed-PMF plot saved to file \"{out_fig_file}\"")
+        # PMF Plot  --------------------------
+        if sim_traj_df is not None:
+            axes[1].scatter(x_sim_traj, pmf_re_sim_traj, color="black", label=pmf_re_sim_traj_label)
+            if plot_interp_sim_traj_pmf_re and pmf_re_sim_traj_interp is not None:
+                axes[1].plot(x_sim_traj_interp, pmf_re_sim_traj_interp, linestyle="dotted", color="black",
+                             label=pmf_re_sim_traj_interpolated_label)
 
-    plt.show()
+        if plot_sim_app_pmf_re and sim_app_pmf_df is not None:
+            axes[1].plot(x_sim_app, pmf_re_sim_app, linestyle="solid", label=pmf_re_sim_app_label)
 
+        axes[1].plot(x_theory, pmf_re_theory, linestyle="dashed", label=pmf_re_theory_label)
+        if plot_pmf_im and not (pmf_im_x is None or pmf_im is None):
+            axes[1].plot(pmf_im_x, pmf_im, label=pmf_im_label)
+        axes[1].set_title(pmf_plot_title)
+        axes[1].set_xlabel("x (Å)")
+        axes[1].set_ylabel("PMF(x) (kcal/mol)")
+        axes[1].legend(bbox_to_anchor=(1.1, 1.15), fontsize=7)
 
-def plot_pmf_reconstructed(pmf_vs_x_dat_file, output_fig_file):
-    df = sp_impl.read_csv(pmf_vs_x_dat_file)
-    x = df[COL_NAME_X]
-    pmf_re = df[COL_NAME_PMF_RE]
-    pmf = _pmf(x)
+        if not out_fig_file and out_file_name_prefix:
+            out_fig_file = f"{out_file_name_prefix}.pdf"
 
-    plt.plot(x, pmf, label="PMF-IM")
-    plt.plot(x, pmf_re, label="PMF-RE")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+            print(f"SP_EVAL: SP and Reconstructed-PMF plot saved to file \"{out_fig_file}\"")
 
-    plt.xlabel("x (Å)")
-    plt.ylabel("PMF(x) (kcal/mol)")
-    plt.legend(loc="upper right")
-    if output_fig_file:
-        plt.savefig(output_fig_file)
-    plt.show()
-
-
-def plot_pmf_imposed():
-    x = np.linspace(x_a, x_b, 100, endpoint=True)
-    y = _pmf(x)
-
-    plt.plot(x, y, label="PMF-IM")
-    plt.xlabel("x (Å)")
-    plt.ylabel("PMF(x) (kcal/mol)")
-
-    plt.legend(loc="upper right")
-    plt.show()
-
-
-def plot_cond_prob():
-    x = np.linspace(x_a, x_b, 100, endpoint=True)
-    y = _cond_prob_vec(x, t=time_instant_test, x0=x_0, t0=t_0)
-
-    plt.plot(x, y, label=f"t: {time_instant_test} s, x0: {x_0} A, t0: {t_0} s")
-    plt.xlabel("x (Å)")
-    plt.ylabel("P(x, t, x0, t0)")
-
-    plt.legend(loc="upper right")
-    plt.show()
-
-
-if __name__ == '__main__':
-    # TODO: set file_names before running
-
-    ## General Tests ------------------------
-    # plot_pmf_im()
-    # plot_cond_prob()
-
-    ## ================================ FIRST PRINCIPLES (APPROX) =====================================
-    # cal_cond_prob_integral_x_vs_x0()
-    # cal_cond_prob_integral_x_vs_t()
-    # cal_fpt()
-
-    if 0:
-        sp_first_principle(out_data_file="results-sp_first_princ/sp_first_princ-fit-1.csv",
-                           reconstruct_pmf=True,
-                           process_count=DEFAULT_PROCESS_COUNT)
-
-    ## ======================== FINAL EQUATION (EXACT) ==================================
-    if 0:
-        sp_final_eq(out_data_file="results-sp_final_eq/sp_final_eq-fit-1.1.csv",
-                    reconstruct_pmf=True,
-                    process_count=DEFAULT_PROCESS_COUNT)
-
-    ## ======================= FROM APPARENT PMF (EXACT-EQUILIBRIUM) =====================
-    if 0:
-        sp_apparent(out_data_file="results-sp_app/sp_app-fit-2.2.csv",
-                    reconstruct_pmf=True,
-                    process_count=DEFAULT_PROCESS_COUNT)
-
-    ## ----------------------------------------------------------------------------------
-
-    ## Plotting Results -> SP and Reconstructed PMF from theory and simulation
-    if 1:
-        sim_traj_df = sp_impl.read_csv("sp_traj2.2.csv")  # (optional)
-        sim_app_pmf_df = sp_impl.read_csv("sp_pmf2.csv")  # (optional)
-        sp_theory_df = sp_impl.read_csv("results-sp_app/sp_app-fit-2.2.csv")
-
-        plot_sp_theory_sim(sp_theory_df=sp_theory_df,
-                           sim_traj_df=sim_traj_df,
-                           sim_traj_df_col_x=COL_NAME_EXT_BIN_MEDIAN,
-                           sim_app_pmf_df=sim_app_pmf_df,
-                           sim_app_pmf_df_col_x=COL_NAME_EXTENSION,
-                           out_file_name_prefix="results-sp_app/sp_app-fit-2.2",
-                           align_sim_app_pmf=True,
-                           align_sim_app_pmf_left_half_only=True,
-                           interp_sim_traj_sp=True,
-                           interp_sim_traj_pmf_re=True,
-                           plot_interp_sim_traj_sp=True,
-                           plot_interp_sim_traj_pmf_re=True,
-                           interp_sim_traj_x_extra_left=0.7,
-                           interp_sim_traj_x_extra_right=0.8,
-                           plot_pmf_im=True,
-                           pmf_im_x_extra_left=1.3,
-                           pmf_im_x_extra_right=1.4)
+        plt.show()

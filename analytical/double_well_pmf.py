@@ -3,6 +3,8 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
+from C import minimize_func
+
 """
 Models Double-Well PMF with depth and bias parameters
 
@@ -58,11 +60,13 @@ def phi(x: np.ndarray,
 
     if bias != 0:
         # Even solution of weber equation
-        _y2: np.ndarray = bias * math.sqrt(ks / kb_t) * x * scipy.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
+        _y2 = bias * math.sqrt(ks / kb_t) * x * scipy.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
     else:
-        _y2: np.ndarray = np.zeros(len(x))
+        _y2 = None
 
     # Φ(A,x) = y1(A,x) + bias * y2(A,x)
+    if _y2 is None:
+        return _common * _y1
     return _common * (_y1 + _y2)
 
     ## NOTE: Final Probability distribution Peq(x) = Φ(A,x)^-2
@@ -106,7 +110,7 @@ def phi_scaled(x: np.ndarray,
 
     NOTE: Scaling
 
-        x = (x * x_offset) * x_scale
+        x = (x + x_offset) * x_scale
         output = (Φ(A,x) + phi_offset) * phi_scale
 
     :param x_scale: scalar which is multiplied to the given x
@@ -161,16 +165,8 @@ def double_well_pmf_scaled(x: np.ndarray,
     return 2 * kb_t * np.log(_phi_ax)
 
 
-def minimize_func(func, x_start: float, x_stop: float):
-    """
-    Minimizes the given function within (x_start, x_stop)
-    Returns the minima_x and value at minima as a tuple (min_x, func(min_x))
-    """
-    opt_res = scipy.optimize.minimize_scalar(func, method="bounded", bounds=(x_start, x_stop))
-    return opt_res.x, opt_res.fun
-
-
 def minimize_double_well_pmf(x_start: float, x_stop: float,
+                             ret_min_value: bool,
                              kb_t: float,
                              ks: float,
                              depth: float,
@@ -195,7 +191,7 @@ def minimize_double_well_pmf(x_start: float, x_stop: float,
                                       phi_offset=phi_offset,
                                       phi_scale=phi_scale)
 
-    return minimize_func(_func, x_start=x_start, x_stop=x_stop)
+    return minimize_func(_func, x_start=x_start, x_stop=x_stop, ret_min_value=ret_min_value)
 
 
 def main():

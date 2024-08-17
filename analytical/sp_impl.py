@@ -1,15 +1,12 @@
-import multiprocessing as mp
-import time
-
 import math
 import warnings
-from typing import Sequence, Literal
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+import numpy as np
 import scipy
 
+from C import COL_NAME_X, COL_NAME_SP_INTEGRAND, COL_NAME_SP, COL_NAME_PMF_RECONSTRUCTED, mp_execute, to_csv
 from double_well_pmf import phi_scaled, double_well_pmf_scaled
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -38,67 +35,31 @@ FIRST-PRINCIPLE and FINAL-EQUATION implementations of Splitting Probability from
     
 ## APPARENT-EQUILIBRIUM Implementation ----------------------
 1. sp_app(x)
-    Splitting probability from Apparent PMF (assumes equilibrium) using Boltzmann inversion
+    Splitting Probability from Apparent PMF implied by extension distribution
+    (assumes equilibrium) using Boltzmann inversion
 
 NOTE: functions ending with "vec" are vectorized versions of corresponding functions.
       They accept array of inputs, and compute the base function at each input in a for-loop
 """
 
-# CONSTANTS
+# CONSTANTS -------------------------------------------------------------
 OFFSET_SP_INTEGRAND_TO_POSITIVE: bool = True
+TRANSFORM_Dn_OUT_AS_PHI: bool = True
 
-COMMENT_TOKEN = "#"
-
-COL_NAME_X = "X"
-COL_NAME_EXTENSION = "EXT"
-COL_NAME_EXT_BIN = "EXT_BIN"
-COL_NAME_EXT_BIN_MEDIAN = "EXT_BIN_MED"
-COL_NAME_SP_INTEGRAND = "SP_INTEGRAND"
-COL_NAME_SP = "SP"
-COL_NAME_PMF = "PMF"
-COL_NAME_PMF_IM = "PMF_IM"  # Imposed PMF
-COL_NAME_PMF_RE = "PMF_RE"  # Reconstructed PMF
-
-CPU_COUNT = mp.cpu_count()
-DEFAULT_PROCESS_COUNT = CPU_COUNT - 1
-
-
-# Multiprocessing
-def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tuple = None) -> np.ndarray:
-    sample_count = len(input_arr)
-
-    q, r = divmod(sample_count, process_count)
-    chunk_size = q if r == 0 else q + 1
-
-    print("---------------------------------------------")
-    print(f"# Computing in Multiprocess Mode"
-          f"\n -> Target Function: {worker_func.__name__}"
-          f"\n -> Total CPU(s): {CPU_COUNT} | Process Count: {process_count}"
-          f"\n -> Total Samples: {sample_count} | Samples per Process: {chunk_size}")
-
-    has_args = isinstance(args, tuple)
-
-    time_start = time.time()
-
-    chunks = []
-    for i in range(0, sample_count, chunk_size):
-        chunk = input_arr[i: min(i + chunk_size, sample_count)]
-        if has_args:
-            chunks.append((chunk, *args))
-        else:
-            chunks.append(chunk)
-
-    with mp.Pool(processes=process_count) as pool:
-        if has_args:
-            res = pool.starmap(worker_func, chunks)
-        else:
-            res = pool.map(worker_func, chunks)
-
-    time_end = time.time()
-
-    print(f"Time taken: {time_end - time_start:.2f} s")
-    print("---------------------------------------------")
-    return np.concatenate(res)
+"""
+FLags controlling the behaviour of final step in SP calculation
+    
+    if true, 
+        final entity in calculation will be considered as "SP_INTEGRAND" which
+        will be integrated over x in a running fashion to give SP
+    
+    Otherwise:
+        final entity in calculation will be considered SP as it is.
+        NO running-integral over x will be performed
+"""
+RUNNING_INTEGRAL_SP_FIRST_PRINCIPLE: bool = True
+RUNNING_INTEGRAL_SP_FINAL_EQ: bool = True
+RUNNING_INTEGRAL_SP_APP_PMF: bool = True
 
 
 # ==========================================================================
@@ -115,10 +76,10 @@ def derivative(func, x0: float, dx: float):
     return scipy.misc.derivative(func, x0=x0, dx=dx)
 
 
-def mittag_leffler(x: int | float, a: int | float, b: int | float, k_max: int = 50) -> np.float128:
-    _sum = np.float128(0)
+def mittag_leffler(x: int | float, a: int | float, b: int | float, k_max: int = 50) -> np.longdouble:
+    _sum = np.longdouble(0)
 
-    _x_pow = np.float128(1)
+    _x_pow = np.longdouble(1)
     for k in range(0, k_max):
         _val = _x_pow / scipy.special.gamma((a * k) + b)
 
@@ -131,8 +92,8 @@ def mittag_leffler(x: int | float, a: int | float, b: int | float, k_max: int = 
 def mittag_leffler_vec(x: np.ndarray | int | float,
                        a: np.ndarray | int | float,
                        b: np.ndarray | int | float,
-                       k_max: np.ndarray | int = 50) -> np.ndarray | np.float128:
-    _vec = np.vectorize(mittag_leffler, otypes=[np.float128])
+                       k_max: np.ndarray | int = 50) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(mittag_leffler, otypes=[np.longdouble])
     return _vec(x=x, a=a, b=b, k_max=k_max)
 
 
@@ -159,9 +120,11 @@ def dn_by_phi(x: np.ndarray | float, n: int, dn_a: float,
               x_scale: float = 1,
               phi_offset: float = 0,
               phi_scale: float = 1) -> np.ndarray | float:
+
     dn_val = dn(x, n=n, a=dn_a,
                 x_offset=x_offset, x_scale=x_scale,
-                out_offset=phi_offset, out_scale=phi_scale)
+                out_offset=phi_offset if TRANSFORM_Dn_OUT_AS_PHI else 0,
+                out_scale=phi_scale if TRANSFORM_Dn_OUT_AS_PHI else 1)
 
     phi_val = phi_scaled(x, kb_t=kb_t, ks=ks,
                          depth=depth, bias=bias,
@@ -193,21 +156,11 @@ def dn_by_phi_func(n: int, dn_a: float,
 
 # Reconstructs RMF from Splitting Probability
 def pmf_re(x: np.ndarray, sp: np.ndarray, kb_t: float):
-    _grad = np.gradient(sp, x)
+    _grad: np.ndarray = np.gradient(sp, x)
     print("SP IMPL: Reconstructing PMF from SP")
     print(f"SP IMPL: SP gradient +ve count: {(_grad > 0).sum()}")
 
     return kb_t * np.log(-_grad)
-
-
-def to_csv(df: pd.DataFrame, path_or_buf, sep="\t", header=True, index=False, index_label=False):
-    df.to_csv(path_or_buf, sep=sep, header=header, index=index, index_label=index_label)
-
-
-def read_csv(path_or_buf, sep=r"\s+",
-             comment=COMMENT_TOKEN,
-             header: int | Sequence[int] | None | Literal["infer"] = "infer"):
-    return pd.read_csv(path_or_buf, sep=sep, comment=comment, header=header)
 
 
 def _create_sp_dataframe(x: np.ndarray,
@@ -222,7 +175,7 @@ def _create_sp_dataframe(x: np.ndarray,
     _df[COL_NAME_SP] = sp
 
     if pmf_re is not None:
-        _df[COL_NAME_PMF_RE] = pmf_re
+        _df[COL_NAME_PMF_RECONSTRUCTED] = pmf_re
 
     if out_data_file:
         print(f"SP IMPL: Writing Splitting Probability DataFrame to file \"{out_data_file}\"")
@@ -234,6 +187,8 @@ def _create_sp_dataframe(x: np.ndarray,
 def _handle_sp_integrand(x: np.ndarray,
                          sp_integrand: np.ndarray,
                          kb_t: float,
+                         do_integrate: bool,
+                         # whether to integrate the sp_integrand to calculate SP or just consider it SP as it is
                          return_sp_integrand: bool,
                          reconstruct_pmf: bool,
                          out_data_file: str | None) -> pd.DataFrame:
@@ -247,15 +202,18 @@ def _handle_sp_integrand(x: np.ndarray,
         else:
             print(f"SP_IMPL: SP_INTEGRAND Offsetting disabled!! Working with negative values...")
 
-    # Integral in the denominator = Constant
-    c = scipy.integrate.trapezoid(y=sp_integrand, x=x)
-    sp = np.zeros(len(x), dtype=np.float128)
+    if do_integrate:
+        # Integral in the denominator = Constant
+        c = scipy.integrate.trapezoid(y=sp_integrand, x=x)
+        sp = np.zeros(len(x), dtype=np.longdouble)
 
-    for i in range(len(x)):
-        _v = scipy.integrate.trapezoid(y=sp_integrand[i:], x=x[i:])
-        sp[i] = _v / c
+        for i in range(len(x)):
+            _v = scipy.integrate.trapezoid(y=sp_integrand[i:], x=x[i:])
+            sp[i] = _v / c
+    else:
+        sp = sp_integrand
 
-    _sp_integrand = sp_integrand if return_sp_integrand else None
+    _sp_integrand = sp_integrand if do_integrate and return_sp_integrand else None
     _pmf_re = pmf_re(x=x, sp=sp, kb_t=kb_t) if reconstruct_pmf else None
 
     return _create_sp_dataframe(x=x,
@@ -280,7 +238,7 @@ def cond_prob(x: float, t: float, x0: float, t0: float,
               x_offset: float = 0,
               x_scale: float = 1,
               phi_offset: float = 0,
-              phi_scale: float = 1) -> np.float128:
+              phi_scale: float = 1) -> np.longdouble:
     bias_crit = math.sqrt(2) * scipy.special.gamma((depth / 2) + 0.75) / scipy.special.gamma((depth / 2) + 0.25)
     c0_sq = ((bias_crit ** 2) - (bias ** 2)) / (2 * bias_crit)
 
@@ -307,7 +265,7 @@ def cond_prob(x: float, t: float, x0: float, t0: float,
 
         return __pre * __der_x * __der_x0 * __mittag
 
-    _sum: float = np.float128(0.0)
+    _sum: float = np.longdouble(0.0)
 
     # first term (n = 0)
     _sum += _cal_summand(0, 1)
@@ -340,8 +298,8 @@ def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
                   x_offset: np.ndarray | float = 0,
                   x_scale: np.ndarray | float = 1,
                   phi_offset: np.ndarray | float = 0,
-                  phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(cond_prob, otypes=[np.float128])
+                  phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(cond_prob, otypes=[np.longdouble])
     return _vec(x=x, t=t, x0=x0, t0=t0,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
                 kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
@@ -364,7 +322,7 @@ def cond_prob_integral_x(x0: float,
                          x_offset: float = 0,
                          x_scale: float = 1,
                          phi_offset: float = 0,
-                         phi_scale: float = 1) -> np.float128:
+                         phi_scale: float = 1) -> np.longdouble:
     x_arr = np.linspace(x_a, x_b, num=x_samples, endpoint=True)
     y_arr = cond_prob_vec(x=x_arr, t=t, x0=x0, t0=t0,
                           n_max=n_max, cyl_dn_a=cyl_dn_a,
@@ -389,8 +347,8 @@ def cond_prob_integral_x_vec(x0: np.ndarray | float,
                              x_offset: np.ndarray | float = 0,
                              x_scale: np.ndarray | float = 1,
                              phi_offset: np.ndarray | float = 0,
-                             phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(cond_prob_integral_x, otypes=[np.float128])
+                             phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(cond_prob_integral_x, otypes=[np.longdouble])
     return _vec(x0=x0,
                 t0=t0, t=t,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
@@ -441,8 +399,8 @@ def first_pass_time_vec(x0: np.ndarray | float,
                         x_offset: np.ndarray | float = 0,
                         x_scale: np.ndarray | float = 1,
                         phi_offset: np.ndarray | float = 0,
-                        phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(first_pass_time, otypes=[np.float128])
+                        phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(first_pass_time, otypes=[np.longdouble])
     return _vec(x0=x0,
                 t0=t0, t=t,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
@@ -469,7 +427,7 @@ def __sp_first_princ_integrand(x0: float, t0: float,
                                x_offset: float = 0,
                                x_scale: float = 1,
                                phi_offset: float = 0,
-                               phi_scale: float = 1) -> np.float128:
+                               phi_scale: float = 1) -> np.longdouble:
     t_arr = np.linspace(t_start, t_stop, num=t_samples, endpoint=True)
     fpt_arr = first_pass_time_vec(x0, t0=t0, t=t_arr, x_a=x_a, x_b=x_b, x_samples=x_samples,
                                   n_max=n_max, cyl_dn_a=cyl_dn_a,
@@ -495,8 +453,8 @@ def __sp_first_princ_integrand_vec(x0: np.ndarray | float,
                                    x_offset: np.ndarray | float = 0,
                                    x_scale: np.ndarray | float = 1,
                                    phi_offset: np.ndarray | float = 0,
-                                   phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(__sp_first_princ_integrand, otypes=[np.float128])
+                                   phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(__sp_first_princ_integrand, otypes=[np.longdouble])
     return _vec(x0=x0, t0=t0,
                 t_start=t_start, t_stop=t_stop, t_samples=t_samples,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
@@ -560,6 +518,7 @@ def sp_first_principle(x_a: float, x_b: float,
     return _handle_sp_integrand(x=x,
                                 sp_integrand=sp_integrand,
                                 kb_t=kb_t,
+                                do_integrate=RUNNING_INTEGRAL_SP_FIRST_PRINCIPLE,
                                 return_sp_integrand=return_sp_integrand,
                                 reconstruct_pmf=reconstruct_pmf,
                                 out_data_file=out_data_file)
@@ -583,7 +542,7 @@ def __sp_final_eq_integrand(x0: float,
                             x_offset: float = 0,
                             x_scale: float = 1,
                             phi_offset: float = 0,
-                            phi_scale: float = 1) -> np.float128:
+                            phi_scale: float = 1) -> np.longdouble:
     def _phi(_x: np.ndarray | float):
         return phi_scaled(_x, kb_t=kb_t, ks=ks,
                           depth=depth, bias=bias,
@@ -609,7 +568,7 @@ def __sp_final_eq_integrand(x0: float,
 
         return inv_fact * __der * __c * __integral
 
-    _sum = np.float128(0)
+    _sum = np.longdouble(0)
 
     # first term (n = 0)
     _sum += _cal_summand(0, 1)
@@ -635,8 +594,8 @@ def _sp_final_eq_integrand_vec(x0: np.ndarray | float,
                                x_offset: np.ndarray | float = 0,
                                x_scale: np.ndarray | float = 1,
                                phi_offset: np.ndarray | float = 0,
-                               phi_scale: np.ndarray | float = 1) -> np.ndarray | np.float128:
-    _vec = np.vectorize(__sp_final_eq_integrand, otypes=[np.float128])
+                               phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(__sp_final_eq_integrand, otypes=[np.longdouble])
     return _vec(x0=x0,
                 x_a=x_a, x_b=x_b,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
@@ -695,6 +654,7 @@ def sp_final_eq(x_a: float, x_b: float,
     return _handle_sp_integrand(x=x,
                                 sp_integrand=sp_integrand,
                                 kb_t=kb_t,
+                                do_integrate=RUNNING_INTEGRAL_SP_FINAL_EQ,
                                 return_sp_integrand=return_sp_integrand,
                                 reconstruct_pmf=reconstruct_pmf,
                                 out_data_file=out_data_file)
@@ -737,9 +697,11 @@ def sp_apparent(x_a: float, x_b: float,
                 phi_offset: float = 0,
                 phi_scale: float = 1):
     """
-    Calculates the Splitting probability between x_a and x_b.
-    Assumes Equilibrium case, and uses Boltzmann inversion
-    to calculate Sp(x) using the apparent pmf
+    Calculates the Splitting probability between x_a and x_b using Apparent-PMF implied by
+    extension distribution.
+    Assumes Equilibrium case, and uses Boltzmann inversion to calculate Sp(x) using the apparent pmf
+
+        Apparent PMF(x) = - KbT * ln(Peq(x))   where Peq(x) is the equilibrium extension distribution
 
     :returns A pandas dataframe containing following columns
         1. COL_NAME_X:
@@ -766,6 +728,7 @@ def sp_apparent(x_a: float, x_b: float,
     return _handle_sp_integrand(x=x,
                                 sp_integrand=sp_integrand,
                                 kb_t=kb_t,
+                                do_integrate=RUNNING_INTEGRAL_SP_APP_PMF,
                                 return_sp_integrand=return_sp_integrand,
                                 reconstruct_pmf=reconstruct_pmf,
                                 out_data_file=out_data_file)
