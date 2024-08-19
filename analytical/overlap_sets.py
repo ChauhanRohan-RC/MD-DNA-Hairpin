@@ -25,7 +25,8 @@ if __name__ == '__main__':
     y2 = set2_df[col_name_y].values
 
     diff = find_overlap_y_diff(x1, y1, x2, y2)
-    y2 -= diff
+    if diff is not None:
+        y2 -= diff
 
     set2_df[col_name_y] = y2
     set2_df.to_csv(set2_aligned_out_file_name, sep="\t", header=True, index=False, index_label=False)

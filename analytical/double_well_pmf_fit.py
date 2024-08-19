@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 import scipy
 
-from C import read_csv, to_csv, COMMENT_TOKEN, PMF_FIT_COL_NAME_PARAM, PMF_FIT_COL_NAME_PARAM_VALUE, \
+import C
+from C import to_csv, COMMENT_TOKEN, PMF_FIT_COL_NAME_PARAM, PMF_FIT_COL_NAME_PARAM_VALUE, \
     PMF_FIT_COL_NAME_PARAM_STD_DEV, COL_NAME_X, COL_NAME_PMF_IMPOSED, minimize_func, COL_NAME_PMF
 from double_well_pmf import double_well_pmf_scaled, phi_scaled
 
@@ -20,23 +21,19 @@ def load_input_pmf(pmf_file_path_or_buf,
                    x_end: float | None = None,
                    sort_x: bool = False,
                    drop_duplicates: bool = False,
-                   return_meta_str: bool = False):
+                   return_meta_str: bool = False,
+                   parsed_out_file_name: str | None = None,
+                   parsed_out_df_separator: str = "\t"):
     # Double Well
-    df: pd.DataFrame = read_csv(pmf_file_path_or_buf, sep=separator)
-    if x_start is not None:
-        df = df[df[x_col_name] >= x_start]
-
-    if x_end is not None:
-        df = df[df[x_col_name] < x_end]
-
-    if sort_x:
-        df.sort_values(x_col_name, inplace=True)
-
-    if drop_duplicates:
-        dup = df[df[x_col_name].duplicated()][x_col_name].unique()
-        if len(dup) > 0:
-            print(f"PMF_FIT:load_pmf => Duplicates found: {dup}")
-            df.drop_duplicates([x_col_name], inplace=True)
+    df = C.load_df(file_path_or_buf=pmf_file_path_or_buf,
+                   x_col_name=x_col_name,
+                   separator=separator,
+                   x_start=x_start,
+                   x_end=x_end,
+                   sort_x=sort_x,
+                   drop_duplicates=drop_duplicates,
+                   parsed_out_file_name=parsed_out_file_name,
+                   parsed_out_df_separator=parsed_out_df_separator)
 
     x = df[x_col_name].values
     pmf = df[pmf_col_name].values
@@ -127,7 +124,10 @@ def fit_double_well_pmf(x: np.ndarray, pmf: np.ndarray,
                                                                  ydata=_fit_in_pmf,
                                                                  p0=(fit_init_depth, fit_init_bias,
                                                                      fit_init_x_offset, fit_init_x_scale,
-                                                                     fit_init_phi_offset, fit_init_phi_scale))
+                                                                     fit_init_phi_offset, fit_init_phi_scale),
+                                                                 # bounds=([-0.5, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf],
+                                                                 #         [1e-4, np.inf, np.inf, np.inf, np.inf, np.inf])
+                                                                 )
 
     param_names = ["depth", "bias", "x_offset", "x_scale", "phi_offset", "phi_scale"]
     # param_val_str = "\n".join(zip(param_names, param_opt_vals))
@@ -199,6 +199,11 @@ def fit_double_well_pmf(x: np.ndarray, pmf: np.ndarray,
     if interpolate_pmf:
         plt.plot(pmf_interp_x, pmf_interp, "--", label="")
     plt.plot(pmf_interp_x, fit_pmf, label="Double-Well FIT")
+
+    # TEST
+    # param_opt_vals[1] = 0
+    # fit_pmf2 = _fit_func(pmf_interp_x, *param_opt_vals)
+    # plt.plot(pmf_interp_x, fit_pmf2, label="FIT-2")
 
     plt.legend(loc="upper right")
     if out_fig_file_name:

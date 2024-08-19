@@ -133,13 +133,13 @@ def find_overlap_y_diff(x1: np.ndarray, y1: np.ndarray,
                         x2: np.ndarray, y2: np.ndarray):
     """
     @return the avg difference (y2 - y1) between the overlapping regions of x1 and x2
-            if x1 and x2 do not overlap, returns 0
+            if x1 and x2 do not overlap, returns None
             Assumes x1 and x2 are sorted in ascending order
     """
     # ALign overlapping regions of pmf1 and pmf2
     overlap = get_overlap_region(x1[0], x1[-1], x2[0], x2[-1])
     if overlap is None:
-        return 0    # No overlap
+        return None    # No overlap
 
     start_x, stop_x = overlap
 
@@ -153,3 +153,39 @@ def find_overlap_y_diff(x1: np.ndarray, y1: np.ndarray,
     common_len = min(len_x1, len_x2)
 
     return np.sum(y2[start_x2_i:start_x2_i + common_len] - y1[start_x1_i: start_x1_i + common_len]) / common_len
+
+
+def load_df(file_path_or_buf,
+            x_col_name: str,
+            separator: str = r"\s+",
+            x_start: float | None = None,
+            x_end: float | None = None,
+            sort_x: bool = False,
+            drop_duplicates: bool = False,
+            parsed_out_file_name: str | None = None,
+            parsed_out_df_separator: str = "\t"):
+    # Double Well
+    df: pd.DataFrame = read_csv(file_path_or_buf, sep=separator)
+
+    changed = False
+    if sort_x:
+        df.sort_values(x_col_name, inplace=True)
+        changed = True
+
+    if drop_duplicates:
+        dup = df[df[x_col_name].duplicated()][x_col_name].unique()
+        if len(dup) > 0:
+            print(f"C.load_df => Duplicates found: {dup}")
+            df.drop_duplicates([x_col_name], inplace=True)
+            changed = True
+
+    if changed and parsed_out_file_name:
+        to_csv(df, parsed_out_file_name, sep=parsed_out_df_separator)
+        print(f"C.load_df => Saving parsed DataFrame to file \"{parsed_out_file_name}\"")
+
+    if x_start is not None:
+        df = df[df[x_col_name] >= x_start]
+    if x_end is not None:
+        df = df[df[x_col_name] < x_end]
+
+    return df

@@ -417,6 +417,8 @@ class SpEval:
                            out_file_name_prefix: str | None,
                            out_fig_file: str | None = "",
                            plot_pmf_im: bool = True,
+                           align_pmf_im: bool = True,
+                           align_pmf_im_offset: float = 0,
                            pmf_im_x_extra_left: float = 1,  # In reaction-coordinate units (mostly Angstrom)
                            pmf_im_x_extra_right: float = 1,  # In reaction-coordinate units (mostly Angstrom)
                            sim_traj_df_col_x: str = COL_NAME_EXT_BIN_MEDIAN,
@@ -510,6 +512,11 @@ class SpEval:
                                                                               endpoint=True)))
 
             pmf_im = self.pmf(pmf_im_x)  # Imposed PMF
+            if align_pmf_im:
+                pmf_im_diff = C.find_overlap_y_diff(pmf_im_x, pmf_im, x_theory, pmf_re_theory)
+                if pmf_im_diff is not None:
+                    pmf_im += (pmf_im_diff + align_pmf_im_offset)
+                    print(f"SP_EVAL: Aligning Imposed-PMF => Actual Offset: {pmf_im_diff} | Explicit: {align_pmf_im_offset} | Total: {pmf_im_diff + align_pmf_im_offset}")
 
             # Save newly created Imposed-PMF samples to a file
             if out_file_name_prefix:

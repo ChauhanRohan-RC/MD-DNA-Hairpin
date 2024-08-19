@@ -1,6 +1,6 @@
 from C import BOLTZMANN_CONST_KCAL_PER_MOL_K, COL_NAME_EXT_BIN_MEDIAN, COL_NAME_PMF_RECONSTRUCTED, COL_NAME_X, \
-    COL_NAME_PMF, COL_NAME_PMF_IMPOSED
-from double_well_pmf_fit import load_input_pmf, fit_double_well_pmf, minimize_double_well_pmf, \
+    COL_NAME_PMF, COL_NAME_PMF_IMPOSED, load_df
+from double_well_pmf_fit import fit_double_well_pmf, minimize_double_well_pmf, \
     samplify_double_well_pmf_fit
 
 """
@@ -15,15 +15,15 @@ Ks = 10  # Force constant (kcal/mol/Å**2)
 
 # -> FIT Double-Well PMF
 if 1:
-    x, pmf, meta_str = load_input_pmf(pmf_file_path_or_buf="data_sim/sp_traj2.2.csv",
-                                      # TODO: input pmf_file and col_names
-                                      x_col_name=COL_NAME_EXT_BIN_MEDIAN,
-                                      pmf_col_name=COL_NAME_PMF_RECONSTRUCTED,
-                                      x_start=None,
-                                      x_end=None,
-                                      sort_x=False,
-                                      drop_duplicates=False,
-                                      return_meta_str=True)
+    x, pmf, meta_str = load_df(file_path_or_buf="data_sim/sp_traj2.2.csv",
+                               # TODO: input pmf_file and col_names
+                               x_col_name=COL_NAME_EXT_BIN_MEDIAN,
+                               y_col_name=COL_NAME_PMF_RECONSTRUCTED,
+                               x_start=None,
+                               x_end=None,
+                               sort_x=False,
+                               drop_duplicates=False,
+                               return_meta_str=True)
 
     fit_double_well_pmf(x=x, pmf=pmf, kb_t=KbT, ks=Ks,
                         out_file_name_prefix="data_sim/pmf_fit/sp_traj-2.2",  # TODO: output file name prefix

@@ -15,14 +15,14 @@ USAGE: search for "TODO" and set the required params and file_names
 
 # ---------------------------------- PARAMS --------------------------------------
 # NOTE: Optimal x_a and x_b
-# -> Without any offset and scales (depth= -0.44, bias=0):
-#       minima (with ks=6950 pN/nm): -0.6618808379709121, 0.6618808379709121
-#       minima (with ks=1 pN/nm): -55.14383234336, 55.14383234336
-# pmf_fit_params_file = "results-theory_exp/params-symm.txt"  # TODO: set fit-params
-pmf_fit_params_file = "data_exp/pmf_fit/pmf-1.1.params.txt"
+# -> with "data_exp/pmf_fit/pmf-1.1.params.txt"
+#       minima: -90.9324406840564, 78.44203869484926
+# -> with "data_exp/pmf_fit/pmf-2.1.params.txt"
+#       minima: -66.11978486242155, 67.37899672916826
+pmf_fit_params_file = "data_exp/pmf_fit/pmf-2.1.params.txt"     # TODO: set fit-params
 
-x_a = -100  # TODO: LEFT Boundary (Å)
-x_b = 100  # TODO: RIGHT Boundary (Å)
+x_a = -66.093  # TODO: LEFT Boundary (Å)
+x_b = 67.35  # TODO: RIGHT Boundary (Å)
 
 x_0 = x_a  # Initially at left well
 t_0 = 0  # Initial time
@@ -42,7 +42,7 @@ n_max = 10
 cyl_dn_a = 10  # "a" param of cylindrical function
 
 x_integration_samples_first_princ = 100
-x_integration_samples_sp_final_eq = 10000  # TODO: set integration sample count
+x_integration_samples_sp_final_eq = 1000  # TODO: set integration sample count
 time_integration_start = t_0
 time_integration_stop = 1e-4
 time_integration_samples = 200
@@ -65,8 +65,8 @@ if __name__ == '__main__':
         sp_eval.load_pmf_fit_params(fit_params_file=pmf_fit_params_file)
 
     ## General Tests -----------------------------------------------------------------
-    print(sp_eval.get_pmf_minima(-100, -50))
-    print(sp_eval.get_pmf_minima(50, 100))
+    # print(sp_eval.get_pmf_minima(-75, -55))
+    # print(sp_eval.get_pmf_minima(55, 75))
     # sp_eval.plot_pmf_imposed(None, None)
     # sp_eval.plot_cond_prob(None, None)
 
@@ -87,26 +87,25 @@ if __name__ == '__main__':
                             process_count=DEFAULT_PROCESS_COUNT)
 
     ## ======================= FROM APPARENT PMF (EXACT-EQUILIBRIUM) =====================
-    if 0:
-        sp_eval.sp_apparent(out_data_file="results-theory_exp/sp_app/sp_app-1.1.csv",
+    if 1:
+        sp_eval.sp_apparent(out_data_file="results-theory_exp/sp_app/sp_app-2.1.csv",
                             reconstruct_pmf=True,
                             process_count=DEFAULT_PROCESS_COUNT)
 
     ## ----------------------------------------------------------------------------------
 
     ## Plotting Results -> SP and Reconstructed PMF from theory and simulation
-    if 0:
-        # TODO: add experimental data from Manuel et.al
+    if 1:
         sim_traj_df = None  # (optional)
         sim_app_pmf_df = None  # (optional)
-        sp_theory_df = read_csv("results-theory_exp/sp_final_eq/sp_final_eq-symm.csv")
+        sp_theory_df = read_csv("results-theory_exp/sp_app/sp_app-2.1.csv")
 
         sp_eval.plot_sp_theory_sim(sp_theory_df=sp_theory_df,
                                    sim_traj_df=sim_traj_df,
                                    sim_traj_df_col_x=COL_NAME_EXT_BIN_MEDIAN,
                                    sim_app_pmf_df=sim_app_pmf_df,
                                    sim_app_pmf_df_col_x=COL_NAME_EXTENSION,
-                                   out_file_name_prefix="results-theory_exp/sp_final_eq/sp_final_eq-symm",
+                                   out_file_name_prefix="results-theory_exp/sp_app/sp_app-2.1",
                                    align_sim_app_pmf=True,
                                    align_sim_app_pmf_left_half_only=True,
                                    interp_sim_traj_sp=True,
@@ -116,5 +115,7 @@ if __name__ == '__main__':
                                    interp_sim_traj_x_extra_left=0.7,
                                    interp_sim_traj_x_extra_right=0.8,
                                    plot_pmf_im=True,
-                                   pmf_im_x_extra_left=0.5,
-                                   pmf_im_x_extra_right=0.5)
+                                   align_pmf_im=False,
+                                   align_pmf_im_offset=-0.04,
+                                   pmf_im_x_extra_left=34,
+                                   pmf_im_x_extra_right=30)

@@ -97,6 +97,10 @@ def mittag_leffler_vec(x: np.ndarray | int | float,
     return _vec(x=x, a=a, b=b, k_max=k_max)
 
 
+def critical_bias(depth: np.ndarray | float) -> np.ndarray | float:
+    return math.sqrt(2) * (scipy.special.gamma((depth / 2) + 0.75) / scipy.special.gamma((depth / 2) + 0.25))
+
+
 def dn(x: np.ndarray | float, n: int, a: float, hermite_monic=True,
        x_offset: float = 0, x_scale: float = 1,
        out_offset: float = 0, out_scale: float = 1
@@ -107,7 +111,8 @@ def dn(x: np.ndarray | float, n: int, a: float, hermite_monic=True,
     return (_val + out_offset) * out_scale
 
 
-def kn(n: int, depth: float, ks: float, friction_coeff: float) -> float:
+def kn(n: np.ndarray | int, depth: np.ndarray | float,
+       ks: np.ndarray | float, friction_coeff: np.ndarray | float) -> np.ndarray | float:
     return (n + depth + 0.5) * ks / friction_coeff
 
 
@@ -120,7 +125,6 @@ def dn_by_phi(x: np.ndarray | float, n: int, dn_a: float,
               x_scale: float = 1,
               phi_offset: float = 0,
               phi_scale: float = 1) -> np.ndarray | float:
-
     dn_val = dn(x, n=n, a=dn_a,
                 x_offset=x_offset, x_scale=x_scale,
                 out_offset=phi_offset if TRANSFORM_Dn_OUT_AS_PHI else 0,
