@@ -12,13 +12,13 @@ COMMENT_TOKEN = "#"
 AVOGADRO_NUMBER = 6.02214076e23
 
 CAL_TO_JOULE = 4.184  # 1 cal = 4.184 J
-KCAL_PER_MOL_TO_pN_nM = 6.94121554      # 1 kcal/mol = 6.95 pN nm
-KCAL_PER_MOL_A2_TO_pN_PER_nM = KCAL_PER_MOL_TO_pN_nM * 100      # 1 kcal/mol/Å**2 = 695 pN/nm
+KCAL_PER_MOL_TO_pN_nM = 6.94121554  # 1 kcal/mol = 6.95 pN nm
+KCAL_PER_MOL_A2_TO_pN_PER_nM = KCAL_PER_MOL_TO_pN_nM * 100  # 1 kcal/mol/Å**2 = 695 pN/nm
 
-BOLTZMANN_CONST_JOULE_PER_MOL_K = 8.314             # Ideal gas constant (J/mol/K)
-BOLTZMANN_CONST_JOULE_PER_MOLECULE_K = 1.380649e-23      # Boltzmann constant (J/molecule/K) = 8.314 / (6.022 x 10^23)
-BOLTZMANN_CONST_KCAL_PER_MOL_K = 1.9872036e-3       # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10^3)
-BOLTZMANN_CONST_pN_nM_PER_MOLECULE_K = BOLTZMANN_CONST_JOULE_PER_MOLECULE_K * 1e21   # Boltzmann constant (pN nm/molecule/K)
+BOLTZMANN_CONST_JOULE_PER_MOL_K = 8.314  # Ideal gas constant (J/mol/K)
+BOLTZMANN_CONST_JOULE_PER_MOLECULE_K = 1.380649e-23  # Boltzmann constant (J/molecule/K) = 8.314 / (6.022 x 10^23)
+BOLTZMANN_CONST_KCAL_PER_MOL_K = 1.9872036e-3  # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10^3)
+BOLTZMANN_CONST_pN_nM_PER_MOLECULE_K = BOLTZMANN_CONST_JOULE_PER_MOLECULE_K * 1e21  # Boltzmann constant (pN nm/molecule/K)
 
 # Columns --------------------------
 COL_NAME_X = "X"
@@ -26,6 +26,8 @@ COL_NAME_X0 = "X0"
 COL_NAME_EXTENSION = "EXT"
 COL_NAME_EXT_BIN = "EXT_BIN"
 COL_NAME_EXT_BIN_MEDIAN = "EXT_BIN_MED"
+COL_NAME_PDF = "PDF"  # Probability Density Function
+COL_NAME_PDF_RECONSTRUCTED = "PDF_RE"  # Reconstructed PDF
 COL_NAME_SP_INTEGRAND = "SP_INTEGRAND"
 COL_NAME_SP = "SP"
 COL_NAME_PMF = "PMF"
@@ -33,9 +35,9 @@ COL_NAME_PMF_IMPOSED = "PMF_IM"  # Imposed PMF
 COL_NAME_PMF_RECONSTRUCTED = "PMF_RE"  # Reconstructed PMF
 COL_NAME_TIME = "T"
 COL_NAME_FIRST_PASS_TIME = "FPT"  # First_passage Time
-COL_NAME_CONDITIONAL_PROBABILITY = "CP"  # Conditional Probability
-COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X = "CP_INT_X"
-COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_TIME = "CP_INT_T"
+COL_NAME_CONDITIONAL_PROBABILITY = "COND_PROB"  # Conditional Probability
+COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X = "COND_PROB_INT_X"
+COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_TIME = "COND_PROB_INT_T"
 
 PMF_FIT_COL_NAME_PARAM = "PARAM"
 PMF_FIT_COL_NAME_PARAM_VALUE = "VALUE"
@@ -84,9 +86,22 @@ def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tup
 
 
 # Pandas Dataframe ---------------------------------------------------------
-def to_csv(df: pd.DataFrame, path_or_buf, sep: str = "\t", header=True, index=False, index_label=False, mode: str = "w",
-           *args, **kwargs):
-    df.to_csv(path_or_buf, sep=sep, header=header, index=index, index_label=index_label, mode=mode, *args, **kwargs)
+def to_csv(df: pd.DataFrame, path_or_buf, sep: str = "\t",
+           comments: list[str] = None,
+           header=True, index=False, index_label=False,
+           mode: str = "w", *args, **kwargs):
+    if comments is not None and len(comments) > 0:
+        with open(path_or_buf, "w") as f:
+            for line in comments:
+                f.write(f"{COMMENT_TOKEN} {line}\n")
+
+            df.to_csv(f, sep=sep,
+                      header=header, index=index, index_label=index_label,
+                      mode="a", *args, **kwargs)
+    else:
+        df.to_csv(path_or_buf, sep=sep,
+                  header=header, index=index, index_label=index_label,
+                  mode=mode, *args, **kwargs)
 
 
 def read_csv(path_or_buf, sep: str = r"\s+",
@@ -117,6 +132,30 @@ def minimize_func(func, x_start: float, x_stop: float, ret_min_value: bool = Fal
     return opt_res.x
 
 
+def maximize_func(func, x_start: float, x_stop: float, ret_max_value: bool = False):
+    """
+    Maximizes the given function within (x_start, x_stop)
+
+    if ret_min_value:
+        returns the x that minimizes func and the value at maxima as a tuple (x_max, func(x_max))
+    else:
+        only returns x in range (x_start, x_stop) that maximizes func
+
+    @param func: the function to be maximized, must take only a single-variable as input
+    @param x_start: start of the domain range to search
+    @param x_stop: start of the domain range to search
+    @param ret_max_value: whether to return the value of function at x_max i.e. func(x_max)
+    """
+
+    def wrapper(x):
+        return -func(x)
+
+    min = minimize_func(wrapper, x_start=x_start, x_stop=x_stop, ret_min_value=ret_max_value)
+    if ret_max_value:
+        return min[0], -min[1]
+    return min
+
+
 def get_overlap_region(x1_start: float, x1_stop: float, x2_start: float, x2_stop: float):
     """
     @return: tuple representing the overlap range, or None if x1 and x2 do not overlap
@@ -139,7 +178,7 @@ def find_overlap_y_diff(x1: np.ndarray, y1: np.ndarray,
     # ALign overlapping regions of pmf1 and pmf2
     overlap = get_overlap_region(x1[0], x1[-1], x2[0], x2[-1])
     if overlap is None:
-        return None    # No overlap
+        return None  # No overlap
 
     start_x, stop_x = overlap
 

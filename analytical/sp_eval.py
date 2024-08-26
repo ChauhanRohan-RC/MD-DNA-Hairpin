@@ -1,15 +1,8 @@
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import scipy
 from matplotlib.figure import figaspect
 
-import C
 import sp_impl
-from C import mp_execute, read_csv, to_csv, COL_NAME_X, COL_NAME_X0, COL_NAME_EXTENSION, COL_NAME_EXT_BIN_MEDIAN, \
-    COL_NAME_SP, COL_NAME_PMF_IMPOSED, \
-    COL_NAME_PMF_RECONSTRUCTED, COL_NAME_TIME, COL_NAME_FIRST_PASS_TIME, COL_NAME_CONDITIONAL_PROBABILITY, \
-    COL_NAME_CONDITIONAL_PROBABILITY_INTEGRAL_OVER_X, DEFAULT_PROCESS_COUNT
+from C import *
 from double_well_pmf import phi_scaled
 from double_well_pmf_fit import load_fit_params
 
@@ -32,8 +25,8 @@ class SpEval:
                  depth: float = -0.49, bias: float = 0,
                  x_offset: float = 0, x_scale: float = 1,
                  phi_offset: float = 0, phi_scale: float = 1,
-                 x_integration_samples_sp_first_princ: int = 100,
-                 x_integration_samples_sp_final_eq: int = 100000,
+                 x_integration_samples_first_princ: int = 100,
+                 x_integration_samples_final_eq: int = 100000,
                  time_integration_start: float = 0,
                  time_integration_stop: float = 1e-4,
                  time_integration_samples: int = 200):
@@ -59,9 +52,9 @@ class SpEval:
         @param phi_offset: "phi_offset" of the double-well pmf
         @param phi_scale: "phi_scale" of the double-well pmf
 
-        @param x_integration_samples_sp_first_princ: no. of integration samples in x for first-principle calculations.
+        @param x_integration_samples_first_princ: no. of integration samples in x for first-principle calculations.
                                                      (expensive) Keep it low
-        @param x_integration_samples_sp_final_eq: no. of integration samples in x for final-equation calculations.
+        @param x_integration_samples_final_eq: no. of integration samples in x for final-equation calculations.
                                                 Keep it high for best accuracy
         @param time_integration_start: start time of time-integrals in first-principle calculations
         @param time_integration_stop: end time of time-integrals in first-principle calculations
@@ -93,8 +86,8 @@ class SpEval:
         self.phi_offset = phi_offset
         self.phi_scale = phi_scale
 
-        self.x_integration_samples = x_integration_samples_sp_first_princ
-        self.x_integration_samples_sp_final_eq = x_integration_samples_sp_final_eq  # TODO: set integration sample count
+        self.x_integration_samples_first_princ = x_integration_samples_first_princ
+        self.x_integration_samples_final_eq = x_integration_samples_final_eq  # TODO: set integration sample count
 
         self.t_integration_start = time_integration_start
         self.t_integration_stop = time_integration_stop
@@ -133,13 +126,36 @@ class SpEval:
                           x_offset=self.x_offset, x_scale=self.x_scale,
                           phi_offset=self.phi_offset, phi_scale=self.phi_scale)
 
-    def pmf(self, x: np.ndarray | float):
+    def pmf(self, x: np.ndarray | float) -> np.ndarray | float:
         return 2 * self.kb_t * np.log(self.phi(x))
 
     def get_pmf_minima(self, x_start: float, x_stop: float, ret_min_value: bool = False):
-        return C.minimize_func(self.pmf, x_start=x_start, x_stop=x_stop, ret_min_value=ret_min_value)
+        return minimize_func(self.pmf, x_start=x_start, x_stop=x_stop, ret_min_value=ret_min_value)
 
-    def cond_prob(self, x: np.ndarray | float, t: np.ndarray | float,
+    def get_pmf_maxima(self, x_start: float, x_stop: float, ret_max_value: bool = False):
+        return maximize_func(self.pmf, x_start=x_start, x_stop=x_stop, ret_max_value=ret_max_value)
+
+    # Probability Density FUnction (Boltzmann Factor) from PMF
+    def pdf_from_pmf(self, x: np.ndarray | float,
+                     out_file_name: str | None,
+                     normalize: bool = True,
+                     scale: float = 1,
+                     out_pdf_col_name: str = COL_NAME_PDF_RECONSTRUCTED) -> np.ndarray | float:
+        pdf_arr = scale / np.square(self.phi(x))
+        if normalize and isinstance(x, np.ndarray):
+            s = np.sum(pdf_arr)
+            if s != 0:
+                pdf_arr /= s
+
+        if out_file_name:
+            _df = pd.DataFrame()
+            _df[COL_NAME_X] = x
+            _df[out_pdf_col_name] = pdf_arr
+            to_csv(_df, out_file_name)
+
+        return pdf_arr
+
+    def cond_prob(self, x: np.ndarray | float, t: np.ndarray | float, normalize: bool = True,
                   x0: np.ndarray | float | None = None, t0: np.ndarray | float | None = None):
 
         if x0 is None:
@@ -148,7 +164,7 @@ class SpEval:
         if t0 is None:
             t0 = self.t_0
 
-        return sp_impl.cond_prob_vec(x=x, t=t, x0=x0, t0=t0,
+        return sp_impl.cond_prob_vec(x=x, t=t, x0=x0, t0=t0, normalize=normalize,
                                      n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
                                      kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
                                      depth=self.depth, bias=self.bias,
@@ -164,7 +180,8 @@ class SpEval:
             t = self.time_instant
 
         return sp_impl.cond_prob_integral_x_vec(x0=x0, t0=t0, t=t,
-                                                x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples,
+                                                x_a=self.x_a, x_b=self.x_b,
+                                                x_samples=self.x_integration_samples_first_princ,
                                                 n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
                                                 kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
                                                 depth=self.depth, bias=self.bias,
@@ -180,7 +197,7 @@ class SpEval:
             t = self.time_instant
 
         return sp_impl.first_pass_time_vec(x0=x0, t0=t0, t=t,
-                                           x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples,
+                                           x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples_first_princ,
                                            n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
                                            kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
                                            depth=self.depth, bias=self.bias,
@@ -204,7 +221,7 @@ class SpEval:
             x_b = self.x_b
 
         if x_integration_samples is None or x_integration_samples < 1:
-            x_integration_samples = self.x_integration_samples_sp_final_eq
+            x_integration_samples = self.x_integration_samples_final_eq
 
         return sp_impl.sp_first_principle(x_a=x_a, x_b=x_b, x_integration_samples=x_integration_samples,
                                           t0=self.t_0, t_start=self.t_integration_start, t_stop=self.t_integration_stop,
@@ -233,7 +250,7 @@ class SpEval:
             x_b = self.x_b
 
         if x_integration_samples is None or x_integration_samples < 1:
-            x_integration_samples = self.x_integration_samples_sp_final_eq
+            x_integration_samples = self.x_integration_samples_final_eq
 
         return sp_impl.sp_final_eq(x_a=x_a, x_b=x_b,
                                    x_integration_samples=x_integration_samples,
@@ -261,7 +278,7 @@ class SpEval:
             x_b = self.x_b
 
         if x_integration_samples is None or x_integration_samples < 1:
-            x_integration_samples = self.x_integration_samples_sp_final_eq
+            x_integration_samples = self.x_integration_samples_final_eq
 
         return sp_impl.sp_apparent(x_a=x_a, x_b=x_b,
                                    x_integration_samples=x_integration_samples,
@@ -275,6 +292,105 @@ class SpEval:
                                    phi_offset=self.phi_offset, phi_scale=self.phi_scale)
 
     # FIRST-Principle TEST METHODS -----------------------------------------------------------
+
+    def cal_cond_prob(self, out_data_file: str | None, out_fig_file: str | None,
+                      t: float = None, normalize: bool = True,
+                      x_sample_count: int = 100):
+        if t is None:
+            t = self.time_instant
+
+        x = np.linspace(self.x_a, self.x_b, x_sample_count, endpoint=True)
+        y = self.cond_prob(x, t=t, x0=self.x_0, t0=self.t_0, normalize=normalize)
+
+        if out_data_file:
+            df = pd.DataFrame({
+                COL_NAME_X: x,
+                COL_NAME_CONDITIONAL_PROBABILITY: y
+            })
+
+            to_csv(df, out_data_file)
+
+        plt.plot(x, y, label=f"t: {t} s, x0: {self.x_0} A, t0: {self.t_0} s")
+        plt.xlabel("x (Å)")
+        plt.ylabel("P(x, t, x0, t0)")
+
+        plt.legend(loc="upper right")
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+        plt.show()
+
+    def cal_cond_prob_multi_time(self, time_instants: np.ndarray,
+                                 x0: float = None,
+                                 normalize: bool = True,
+                                 x_sample_count: int = 100,
+                                 plot_title: str = "Probability Density Function",
+                                 plot_subtitle: str | None = "",
+                                 plot_xlabel: str = '$x$ (Å)',
+                                 plot_ylabel: str = 'Probability Density $P(x)$',
+                                 plot_xlims: tuple = (None, None),
+                                 plot_ylims: tuple = (None, None),
+                                 plot_legend_loc: str = 'upper right',
+                                 time_unit_in_secs: float = 1e-6,
+                                 time_unit_label: str = "µs",
+                                 out_file_name_prefix: str | None = None,
+                                 out_data_file: str | None = None,
+                                 out_fig_file: str | None = None):
+
+        if x0 is None:
+            x0 = self.x_0
+
+        if out_file_name_prefix:
+            if not out_data_file:
+                out_data_file = f"{out_file_name_prefix}.csv"
+            if not out_fig_file:
+                out_fig_file = f"{out_file_name_prefix}.pdf"
+
+        pdf_arr = []
+
+        x = np.linspace(self.x_a, self.x_b, x_sample_count, endpoint=True)
+        for time in time_instants:
+            pdf_arr.append(self.cond_prob(x, t=time, normalize=normalize))
+
+        # Data frame
+        if out_data_file:
+            df = pd.DataFrame()
+            df[COL_NAME_X] = x
+
+            for i in range(len(time_instants)):
+                df[f"{COL_NAME_CONDITIONAL_PROBABILITY}_{i}"] = pdf_arr[i]
+
+            to_csv(df, f"{out_file_name_prefix}.csv", comments=[
+                "---------------- Conditional Probability -------------------",
+                f"INPUT x_a: {self.x_a} Å | x_b: {self.x_b} Å | x_0: {x0} Å",
+                f"INPUT kbT: {self.kb_t}  |  Ks: {self.ks}",
+                f"INPUT Double-Well PMF fit-params => depth: {self.depth} | bias: {self.bias} | x_offset: {self.x_offset} | x_scale: {self.x_scale} | phi_offset: {self.phi_offset} | phi_scale: {self.phi_scale}",
+                f"OUTPUT Cond Prob Time Instants (sec): [ {', '.join(map(str, time_instants))} ]",
+                f"---------------------------------------------------------"
+            ])
+
+            print(f"SP_EVAL: Conditional Probability at multiple Time instants DATA saved to file \"{out_data_file}\"")
+
+        # Plotting
+        for i in range(len(time_instants)):
+            plt.plot(x, pdf_arr[i], label=f"{time_instants[i] / time_unit_in_secs:g} ${time_unit_label}$")
+
+        plt.suptitle(plot_title)  # TODO: title and subtitle of plot
+        plt.title(plot_subtitle)
+        plt.xlabel(plot_xlabel)
+        plt.ylabel(plot_ylabel)
+
+        if plot_xlims is not None:
+            plt.gca().set_xlim(list(plot_xlims))
+        if plot_ylims is not None:
+            plt.gca().set_ylim(list(plot_ylims))
+
+        plt.legend(loc=plot_legend_loc)
+
+        if out_fig_file:
+            plt.savefig(out_fig_file)
+            print(f"SP_EVAL: Conditional Probability at multiple Time instants PLOT saved to file \"{out_fig_file}\"")
+
+        plt.show()
 
     def _cond_prob_integral_x_vs_x0_worker(self, x0: np.ndarray | float):
         return self.cond_prob_integral_x(x0=x0, t0=self.t_0, t=self.time_instant)
@@ -324,25 +440,24 @@ class SpEval:
             plt.savefig(out_fig_file)
         plt.show()
 
-    def _fpt_worker(self, t: np.ndarray):
+    def _fpt_vs_t_worker(self, t: np.ndarray):
         return self.first_pass_time(x0=self.x_0, t0=self.t_0, t=t)
 
     # First passage time
-    def cal_fpt(self, out_data_file: str | None, out_fig_file: str | None):
+    def cal_fpt_vs_t(self, t: np.ndarray, out_data_file: str | None, out_fig_file: str | None):
         # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
 
-        t_arr = np.linspace(4.2e-8, 4e-6, 100, endpoint=False)
-        y = mp_execute(self._fpt_worker, t_arr, DEFAULT_PROCESS_COUNT)
+        fpt = mp_execute(self._fpt_vs_t_worker, t, DEFAULT_PROCESS_COUNT)
 
         if out_data_file:
             df = pd.DataFrame({
-                COL_NAME_TIME: t_arr,
-                COL_NAME_FIRST_PASS_TIME: y
+                COL_NAME_TIME: t,
+                COL_NAME_FIRST_PASS_TIME: fpt
             })
 
             to_csv(df, out_data_file)
 
-        plt.plot(t_arr, y, label="FPT vs t")
+        plt.plot(t, fpt, label="FPT vs t")
         plt.xlabel("Time (s)")
         plt.ylabel("First Passage Time FPT(t)")
 
@@ -350,6 +465,7 @@ class SpEval:
         if out_fig_file:
             plt.savefig(out_fig_file)
         plt.show()
+        return fpt
 
     # PLOTTING -------------------------------------------------------------------------------
 
@@ -388,27 +504,6 @@ class SpEval:
         plt.legend(loc="upper right")
         if output_fig_file:
             plt.savefig(output_fig_file)
-        plt.show()
-
-    def plot_cond_prob(self, out_data_file: str | None, out_fig_file: str | None, x_sample_count: int = 100):
-        x = np.linspace(self.x_a, self.x_b, x_sample_count, endpoint=True)
-        y = self.cond_prob(x, t=self.time_instant, x0=self.x_0, t0=self.t_0)
-
-        if out_data_file:
-            df = pd.DataFrame({
-                COL_NAME_X: x,
-                COL_NAME_CONDITIONAL_PROBABILITY: y
-            })
-
-            to_csv(df, out_data_file)
-
-        plt.plot(x, y, label=f"t: {self.time_instant} s, x0: {self.x_0} A, t0: {self.t_0} s")
-        plt.xlabel("x (Å)")
-        plt.ylabel("P(x, t, x0, t0)")
-
-        plt.legend(loc="upper right")
-        if out_fig_file:
-            plt.savefig(out_fig_file)
         plt.show()
 
     def plot_sp_theory_sim(self, sp_theory_df: pd.DataFrame,
@@ -502,21 +597,24 @@ class SpEval:
             samples_per_x = len(x_theory) / abs(x_theory[-1] - x_theory[0])
 
             pmf_im_x = x_theory if no_extra_x else np.concatenate((np.linspace(x_theory[0] - pmf_im_x_extra_left,
-                                                                              x_theory[0],
-                                                                              num=max(1, round( abs(samples_per_x * pmf_im_x_extra_left))),
-                                                                              endpoint=False),
-                                                                  x_theory,
-                                                                  np.linspace(x_theory[-1] + (1 / samples_per_x),
-                                                                              x_theory[-1] + pmf_im_x_extra_right,
-                                                                              num=max(1, round(abs(samples_per_x * pmf_im_x_extra_right))),
-                                                                              endpoint=True)))
+                                                                               x_theory[0],
+                                                                               num=max(1, round(
+                                                                                   abs(samples_per_x * pmf_im_x_extra_left))),
+                                                                               endpoint=False),
+                                                                   x_theory,
+                                                                   np.linspace(x_theory[-1] + (1 / samples_per_x),
+                                                                               x_theory[-1] + pmf_im_x_extra_right,
+                                                                               num=max(1, round(
+                                                                                   abs(samples_per_x * pmf_im_x_extra_right))),
+                                                                               endpoint=True)))
 
             pmf_im = self.pmf(pmf_im_x)  # Imposed PMF
             if align_pmf_im:
-                pmf_im_diff = C.find_overlap_y_diff(pmf_im_x, pmf_im, x_theory, pmf_re_theory)
+                pmf_im_diff = find_overlap_y_diff(pmf_im_x, pmf_im, x_theory, pmf_re_theory)
                 if pmf_im_diff is not None:
                     pmf_im += (pmf_im_diff + align_pmf_im_offset)
-                    print(f"SP_EVAL: Aligning Imposed-PMF => Actual Offset: {pmf_im_diff} | Explicit: {align_pmf_im_offset} | Total: {pmf_im_diff + align_pmf_im_offset}")
+                    print(
+                        f"SP_EVAL: Aligning Imposed-PMF => Actual Offset: {pmf_im_diff} | Explicit: {align_pmf_im_offset} | Total: {pmf_im_diff + align_pmf_im_offset}")
 
             # Save newly created Imposed-PMF samples to a file
             if out_file_name_prefix:

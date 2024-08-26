@@ -1,0 +1,564 @@
+\documentclass[twoside,twocolumn,9pt]{article}
+\usepackage{extsizes}
+\usepackage[super,sort&compress,comma]{natbib} 
+\usepackage[version=3]{mhchem}
+\usepackage[left=1.5cm, right=1.5cm, top=1.785cm, bottom=2.0cm]{geometry}
+\usepackage{balance}
+\usepackage{times,mathptmx}
+\usepackage{sectsty}
+\usepackage{graphicx} 
+\usepackage{lastpage}
+\usepackage[format=plain,justification=justified,singlelinecheck=false,font={stretch=1.125,small,sf},labelfont=bf,labelsep=space]{caption}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage{fnpos}
+%\usepackage[english]{babel}
+\usepackage{array}
+\usepackage{droidsans}
+\usepackage{charter}
+\usepackage[T1]{fontenc}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{setspace}
+\usepackage[compact]{titlesec}
+\usepackage{multirow} 
+\usepackage{subfigure}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{color}
+\usepackage{xr}
+\usepackage{epstopdf}
+%\usepackage{threeparttable}
+%\usepackage{bm}
+%\usepackage{subcaption}
+%\usepackage{docs}
+
+%\externaldocument{suppinfo}
+
+
+
+
+\definecolor{cream}{RGB}{222,217,201}
+
+\begin{document}
+
+\pagestyle{fancy}
+\thispagestyle{plain}
+\fancypagestyle{plain}{
+\fancyhead[C]{\includegraphics[width=18.5cm]{head_foot/header_bar}}
+\fancyhead[L]{\hspace{0cm}\vspace{1.5cm}\includegraphics[height=30pt]{head_foot/journal_name}}
+\fancyhead[R]{\hspace{0cm}\vspace{1.7cm}\includegraphics[height=55pt]{head_foot/RSC_LOGO_CMYK}}
+\renewcommand{\headrulewidth}{0pt}
+}
+\makeFNbottom
+\makeatletter
+\renewcommand\LARGE{\@setfontsize\LARGE{15pt}{17}}
+\renewcommand\Large{\@setfontsize\Large{12pt}{14}}
+\renewcommand\large{\@setfontsize\large{10pt}{12}}
+\renewcommand\footnotesize{\@setfontsize\footnotesize{7pt}{10}}
+\makeatother
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\renewcommand\footnoterule{\vspace*{1pt}% 
+\color{cream}\hrule width 3.5in height 0.4pt \color{black}\vspace*{5pt}} 
+\setcounter{secnumdepth}{5}
+
+\makeatletter 
+\renewcommand\@biblabel[1]{#1}            
+\renewcommand\@makefntext[1]% 
+{\noindent\makebox[0pt][r]{\@thefnmark\,}#1}
+\makeatother 
+\renewcommand{\figurename}{\small{Fig.}~}
+\sectionfont{\sffamily\Large}
+\subsectionfont{\normalsize}
+\subsubsectionfont{\bf}
+\setstretch{1.125} 
+\setlength{\skip\footins}{0.8cm}
+\setlength{\footnotesep}{0.25cm}
+\setlength{\jot}{10pt}
+\titlespacing*{\section}{0pt}{4pt}{4pt}
+\titlespacing*{\subsection}{0pt}{15pt}{1pt}
+
+\fancyfoot{}
+\fancyfoot[LO,RE]{\vspace{-7.1pt}\includegraphics[height=9pt]{head_foot/LF}}
+\fancyfoot[CO]{\vspace{-7.1pt}\hspace{13.2cm}\includegraphics{head_foot/RF}}
+\fancyfoot[CE]{\vspace{-7.2pt}\hspace{-14.2cm}\includegraphics{head_foot/RF}}
+\fancyfoot[RO]{\footnotesize{\sffamily{1--\pageref{LastPage} ~\textbar  \hspace{2pt}\thepage}}}
+\fancyfoot[LE]{\footnotesize{\sffamily{\thepage~\textbar\hspace{3.45cm} 1--\pageref{LastPage}}}}
+\fancyhead{}
+\renewcommand{\headrulewidth}{0pt} 
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\arrayrulewidth}{1pt}
+\setlength{\columnsep}{6.5mm}
+\setlength\bibsep{1pt}
+
+\makeatletter 
+\newlength{\figrulesep} 
+\setlength{\figrulesep}{0.5\textfloatsep} 
+
+\newcommand{\topfigrule}{\vspace*{-1pt}% 
+\noindent{\color{cream}\rule[-\figrulesep]{\columnwidth}{1.5pt}} }
+
+\newcommand{\botfigrule}{\vspace*{-2pt}% 
+\noindent{\color{cream}\rule[\figrulesep]{\columnwidth}{1.5pt}} }
+
+\newcommand{\dblfigrule}{\vspace*{-1pt}% 
+\noindent{\color{cream}\rule[-\figrulesep]{\textwidth}{1.5pt}} }
+
+\makeatother
+
+\twocolumn[
+  \begin{@twocolumnfalse}
+\vspace{3cm}
+\sffamily
+\begin{tabular}{m{4.5cm} p{13.5cm} }
+
+\includegraphics{head_foot/DOI} & \noindent\LARGE{\textbf{Evaluating the Free Energy Profiles of Conformational Transitions from the Splitting Probability$^\dag$}} \\
+\vspace{0.3cm} & \vspace{0.3cm} \\
+
+ & \noindent\large{Rohan Singh Chauhan}and Parbati Biswas\textit{$^{a\ast}$}} \\
+
+\includegraphics{head_foot/dates} & \noindent\normalsize{
+Single molecule experiments have facilitated the investigation of the dynamics of conformational transitions 
+of biomolecules. For the (un)folding transition of DNA hairpins, the theoretically calculated splitting probability
+from the generalized Langevin equation with a power-law frictional memory kernel
+exactly matches with that obtained from the experiments. The exact Potential of Mean Force (PMF) 
+is calculated from the splitting probability using ``committor inversion''.
+The PMF of the selected DNA hairpin is also evaluated from the steered molecular dynamics (SMD) 
+simulations with varying forces. SMD simulations clearly show that the conformational 
+transitions of the DNA hairpin are a function of the pulling force.
+At lower forces, some conformational states are 
+non-existent while, at higher forces all states are clearly demarcated in the free energy landscape.
+At higher forces, the unfolding rates are independent of the force, whereas at lower 
+forces the rates increase linearly with the applied force. Force induced (un)folding of the biomolecule provides 
+an insight to the dynamics of structural transitions through activated potential energy barriers.} 
+
+\end{tabular}
+
+ \end{@twocolumnfalse} \vspace{0.6cm}
+
+  ]
+
+\renewcommand*\rmdefault{bch}\normalfont\upshape
+\rmfamily
+\section*{}
+\vspace{-1cm}
+
+
+%%%FOOTNOTES%%%
+
+\footnotetext{\textit{$^$~Department of Chemistry, University of Delhi, Delhi 110007, India. 
+ 
+$^{\ast}$Tel: +911127666646; E-mail: pbiswas@chemistry.du.ac.in}}
+
+\footnotetext{\dag~Electronic Supplementary Information (ESI) available: []. See DOI: 10.1039/b000000x/}
+
+\section{Introduction} 
+
+The dynamics of conformational transitions of biomolecules in solution may be described as a 
+diffusion in a multidimensional free energy landscape (FEL) with many degrees of freedom
+\cite{kramers1940brownian,zwanzig2001nonequilibrium,makarov2021barrier}. 
+This complex dynamics may be considerably simplified by projecting it onto a 
+one-dimensional ($1$D) coordinate, assuming that the motion along all other coordinates
+are fast enough to be in thermal equilibrium \cite{berezhkovskii2013diffusion,berezhkovskii2020nonequilibrium}. 
+Such a projection renders the barrier crossing dynamics 
+non-Markovian \cite{kramers1940brownian,berezhkovskii2020nonequilibrium}, 
+that may be monitored through a suitably chosen one-dimensional reaction coordinate. Typically, the end-to-end 
+distance of the protein/nucleic acid is chosen as an appropriate reaction coordinate.  
+The temporal evolution of this reaction coordinate may be correlated with the single-molecule experimental data.
+Single-molecule force spectroscopy (SMFS) and fluorescence
+resonance energy transfer (FRET) experiments are used to monitor the structural transitions of protein and 
+nucleic acids both in equilibrium and non-equilibrium conditions under constant mechanical force to study the dynamics
+of folding/unfolding of these biomolecules 
+\cite{manuel2015reconstructing,chodera2011splitting,greenleaf2008direct,neupane2011single}. 
+The enhanced resolutions of the recent SMFS and FRET experiments upto a $\mu$s
+\cite{chung2018protein,hoffer2019probing,neupane2016direct} 
+have captured the motion of these biomolecules across the potential barrier through 
+the ``transition path'' at the top of the barrier. Advances in the experimental techniques have been adequately 
+complemented with parallel developments in both theory and simulations
+\cite{makarov2021barrier,sharma2021effect,singh2021generalized,berezhkovskii2020nonequilibrium,kim2015mean,berezhkovskii2013diffusion}. 
+
+\begin{figure}[h!]
+\includegraphics[width=0.4\textwidth]{1-Graph-Split-Fig.eps}
+\caption{Schematic potential energy for a three state system, where interval ($a,b$) (or ($a_1,b_1$)) 
+is chosen in the barrier region and point $x$ is defined in between the interval.}
+\label{Schematic-Splitting}
+\end{figure}
+Conformational transitions of proteins and nucleic acids are intricately linked to their respective
+biological functions. Such transitions delineate the underlying free energy landscape of these biomolecules 
+along a relevant reaction coordinate, where the energy of the molecule is depicted as a function of its 
+all possible conformations. Thus, the free energy at equilibrium, $U(x)$, may be obtained from the logarithm of the 
+probability distribution function, $p_{eq}(x)$, of the reaction coordinate, $x$, given by
+\begin{equation}
+U(x)=-k_{B}T \ln p_{eq}(x)
+\label{equilbrium-PDF}
+\end{equation} 
+where, $k_{B}$ is the Boltzmann constant and $T$ is the absolute temperature. This defines the
+Boltzmann inversion, applicable only at thermal equilibrium. However, for out-of equilibrium
+systems, the probability 
+distribution may be defined through the splitting (committor) probability
+\cite{makarov2021barrier,manuel2015reconstructing,covino2019molecular,berezhkovskii2020nonequilibrium}.  
+A point $x$ is arbitrarily chosen within the barrier region $(a,b)$ along
+the transition path. The splitting probability, $S_{p(a)}(x)$/($S_{p(b)}(x)=1-S_{p(a)}(x)$) is defined as the probability 
+of the trajectory that begins at $x$ and crosses the boundary $a$/$b$ without revisiting the other boundary $b$/$a$
+\cite{makarov2021barrier,berezhkovskii2020nonequilibrium} (refer to Figure \ref{Schematic-Splitting}).
+Thus, for a symmetric potential well, the splitting probabilities are identical 
+$S_{p(a)}(x) \approx S_{p(b)}(x) \approx 0.5$ in the limit $t_{max} \to \infty$ \cite{hummer2004transition},
+where $t_{max}$ denotes the maximum time to reach one of the potential wells in the FEL.
+Splitting probability may be estimated from the folding trajectories of single molecules for a specified reaction
+coordinate $x$. 
+
+In this work, we aim to evaluate and reconstruct the free energy landscape of
+the DNA hairpin from the splitting probability and the potential of mean force (PMF). 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%REMOVE!!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The rates of such transitions are also calculated in the limits of low and high forces. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The theoretically calculated splitting 
+probability evaluated from the overdamped generalized Langevin equation (GLE) with the non-Markovian frictional memory 
+kernel matches with that of the experiments. Steered molecular dynamics (SMD) simulations of 
+the selected hairpin are also performed at different pulling forces and the PMF is calculated using ``committor 
+inversion''. From the simulations, it is clearly observed that the structural transitions of the DNA 
+hairpin are a function of pulling force. At low forces, some states are less populated or unpopulated, 
+while at higher forces, all states are populated and are clearly discernible. Thus, the force induced 
+(un)folding of the biomolecule offers an insight to the dynamics of the conformational transitions 
+of the DNA hairpin. 
+
+This article is organized as follows. The mathematical calculations 
+of the splitting probabilities are given in Section $2$. Section $3$ provides the details of simulation 
+of the DNA hairpin at different pulling forces. Results and discussions of both theory and 
+the simulation results are compared and analyzed in Section $4$ followed by the conclusions in Section $5$.
+
+\section{Theory} \label{theory}
+
+The time evolution of the $1$D reaction coordinate that governs the fold/unfold transition of the biomolecule 
+in the complex cellular environment may be theoretically modeled via the overdamped generalized Langevin equation
+as \cite{zwanzig2001nonequilibrium,kubo2012statistical,sharma2021effect,sharma2020conformational,sharma2022analysis}
+\begin{equation}
+m \int_{0}^{t}\mathbf{\gamma}{(t-t')}{\dot{{{x}}}{(t')}} dt' + \frac{d {U}{(x)}}{dx} = \mathbf{\xi}{(t)}
+\label{GLE}
+\end{equation} 
+where the thermal fluctuations of the molecule are determined by the Gaussian random noise, $\mathbf{\xi}{(t)}$,
+whose mean is defined by $\langle\mathbf{\xi}{(t)}\rangle=0$. The frictional memory kernel is related to the 
+Gaussian-distributed random force by the fluctuation-dissipation theorem \cite{kubo2012statistical} as 
+$\langle\mathbf{\xi}{(t)}\mathbf{\xi}{(t')}\rangle=k_{B}T\gamma(t-t')$, where the angular brackets denote statistical
+averaging over the noise ensemble. The conformational transitions of the DNA hairpin occur in a viscoelastic cellular 
+medium, which introduces memory effects that makes the dynamics typically non-Markovian. This dynamics is modeled 
+through a time-dependent power-law frictional memory kernel as 
+$\langle\mathbf{\xi}{(t)}\mathbf{\xi}{(0)}\rangle=\frac{k_{B}T{\eta_\beta} t^{-\beta}}{\Gamma(1-\beta)}$.       
+where, $\eta_{\beta}={\eta}/{{\tau_{c}}^{(1-\beta)}}$ denotes the frictional coefficient and 
+$\tau_{c}$ is the correlation time of the thermal fluctuations. The exponent $\beta$ is a measure of the 
+complexity of the cellular environment and may vary between $0$ to $1$ (i.e., $0 < \beta\leq 1$). While 
+$\beta=1$ shows a completely diffusive (homogeneous) environment, $\beta=0$ corresponds to the heterogeneous 
+surroundings. A generalized double well potential \cite{sharma2021effect,sharma2020conformational,hongler1983exact} 
+for the conformational transitions of biomolecules is defined by
+\begin{equation}
+U(x)= 2 k_{B} T \ln \ \Phi(A,x)
+\label{Asymm-poten-gen}
+\end{equation}
+The term $\Phi(A,x)$ is represented as a linear combination of the even and odd solution of the Weber 
+equation \cite{hongler1983exact,sharma2021effect} with a biasing parameter, (${\cal{B}}$). The simplified analytical expression 
+of $\Phi(A,x)$ is given as
+%\begin{widetext}
+\begin{equation}
+\begin{split}
+\Phi(A,x)&=y_{1}(A,x) + {\cal{B}} y_{2}(A,x)\\
+	 &=exp\left(-\frac{k_{S}}{4 k_{B}T} x^{2}\right) \left[ {_1}F_{1} \left(\frac{A}{2}+\frac{1}{4},\frac{1}{2};\frac{k_{S}}{2k_{B}T} x^{2}\right) \right.\\
+	 	&\left. +{\cal{B}} x \sqrt{\frac{k_{S}}{k_{B}T}}  {_1}F_{1} \left(\frac{A}{2}+\frac{3}{4},\frac{3}{2};\frac{k_{S}}{2k_{B}T} x^{2}\right) \right]
+\label{Asymm-poten-expr}
+\end{split} 
+\end{equation}
+%\end{widetext}
+where, $k_{s}$ denotes the curvature of the energetic barrier that quantifies the rigidity 
+of the optical trap and ${_1}F_{1}(\alpha,\beta;z)$ is the Kummer's (confluent hypergeometric) function.
+The values of $A$ within $-1/2\leq A<0$ depict the depth of the potential well. The biasing parameter ${\cal{B}}$
+represents the symmetry of the well, with ${\cal{B}} = \sqrt{2} \frac{\Gamma(A/2+3/4)}{\Gamma(A/2+1/4)}$.
+While ${\cal{B}}<0$ and ${\cal{B}}>0$ represent the asymmetric bistable potential, ${\cal{B}}=0$ denotes 
+the symmetric potential.
+
+The probability of finding the reaction coordinate, $x(t)$ of the biomolecule in the potential energy landscape 
+at any time $t$
+is denoted by the conditional probability distribution, $P(x,t|x_{0},t_{0})$, assuming that the initial position of 
+the molecule is $x_{0}$ at time $t=0$ ($t_{0}$). Therefore, the effective Fokker-Planck equation (EFPE) may be recast 
+in terms of $P(x,t|x_{0},t_{0})$ as (refer to Sections $1-3$ of the Supplementary Information)
+\begin{equation}
+\frac{\partial P(x,t|x_{0},t_{0})}{\partial t}=D(t)\left[{\frac{\partial^2 }{\partial x^2}} 
+			+\frac{1}{k_{B}T}{\frac{\partial }{\partial x}\frac{dU(x)}{dx}}\right] P(x,t|x_{0},t_{0})
+\label{EFPE}
+\end{equation} 
+where, $D(t)=\frac{k_BT}{k_S} \frac{\dot{{\cal{Z}}}{(t)}}{{{\cal{Z}}}{(t)}}$ denotes the time-dependent diffusion 
+coefficient of the biomolecule in the complex cellular environment. The function ${\cal{Z}}$ is defined as; 
+${\cal{Z}}=E_{\beta,1}\left(\ D_\beta \frac{k_S }{k_BT} \ t^{\beta}\right)$, where, $E_{\beta,1}$ is the 
+two-parameter Mittag-Leffler function and $D_{\beta}=\left(\frac{k_{B}T}{\eta_{\beta}}\right)$ ${nm}^2{\mu s}^{-\beta}$ 
+is the diffusion coefficient in the cellular environment with varying heterogeneity of the medium. The conditional 
+probability distribution, $P(x,t|x_{0},t_{0})$ may be obtained from the solution of Eqn. (\ref{EFPE}) as
+%\begin{widetext}
+\begin{equation}
+\begin{split}
+P(x,t|x_{0},t_{0})={C_{0}^2}&\sqrt{\frac{k_{S}}{k_{B}T}}{\frac{1}{\left(\Phi{(A,x)}\right)^2}} 
+			+{\sum_{n=0}^{\infty}} C_{n+1}^2 \sqrt{\frac{k_{B}T}{k_{S}}} \left(\Phi{(A,x_0)}\right)^2\\ 
+			&\times\frac{d}{dx}\frac{D_{n}(x)}{\Phi(A,x)}\frac{d}{dx_{0}}\frac{D_{n}(x_{0})}{\Phi(A,x_{0})}
+					{{\cal{Z}}}{(t)}^{-\left(n+A+\frac{1}{2}\right)}
+\label{final-condn-prob}
+\end{split}
+\end{equation}
+%\end{widetext}
+where, $D_n{(x)} = 2^{-n/2}exp\left(-ax^2 /2 \right) H_{n}{(x\sqrt{a})}$ is the cylindrical function and $H_{n}(x)$ 
+is the Hermite polynomial. $C_{0}$ and $C_{n+1}$ in Eqn. (\ref{final-condn-prob}) are the normalization constants 
+of the ground and excited states, respectively (refer to Sections $4$ and $5$ of the Supplementary Information).
+
+Splitting probability of the biomolecule, $S_{p(x_{A}/x_{B})}(x)$ at $t_{0}$ may be evaluated from $P(x,t|x_{0},t_{0})$.  
+$S_{p(x_{A}/x_{B})}(x)$, is defined as the zeroth moment of the first passage time distribution \cite{kim2015mean}, 
+${\cal{F}}(x_{0},t)$ between any two boundaries $x_{A}$ and $x_{B}$, where, $x_{A}$ and $x_{B}$ correspond
+to the position of the left and right potential well in the FEL, respectively, $x_{A}<x(x_{0})<x_{B}$ 
+(refer to Figure \ref{Schematic-Splitting}; for the mathematical calculation, we use `A' instead of `a',
+whereas `a' is used for the simulation calculations).
+\begin{equation}
+S_{p(x_{A}/x_{B})}(x)=\int_{0}^{\infty} t^{0} {\cal{F}}(x_{0},t) dt
+\label{Splitting-Prob}     
+\end{equation}  
+where, ${\cal{F}}(x_{0},t)$ is expressed \cite{sharma2022analysis} as
+\begin{equation}
+{\cal{F}}(x_{0},t)=-\frac{d}{dt}\int_{x_{A}}^{{x_{B}}} P(x,t|x_{0},t_{0}) dx
+\label{FPTD}     
+\end{equation}
+The splitting probability, $S_{p}(x)$, Eqn. (\ref{Splitting-Prob}) for a completely homogeneous 
+(diffusive, $\beta=1$) surroundings is obtained by substituting Eqn. (\ref{final-condn-prob}) in Eqn. (\ref{FPTD}), 
+as
+%\begin{widetext}
+\begin{equation}
+\begin{split}
+S_{p(x_{A}/x_{B})}(x)=D_{1}&\sqrt{\frac{k_{s}}{k_{B}T}} \left(\Phi{(A,x_{0})}\right)^2 \frac{1}{\sqrt{2\pi}} \int_{0}^{\infty} \sum_{n=0}^{\infty}  
+					\frac{1}{n!} \frac{d}{dx_{0}} \frac{D_{n}(x_{0})}{\Phi(A,x_{0})}\\
+					&\times {\left[\frac{D_n{(x)}}{\Phi{(A,x)}}\right]{\Biggr|}_{x_A}^{x_{B}}}
+					\left[E_{1,1}\left(D_{1}\frac{k_{s}}{k_{B}T}t\right)\right]^{-\left(n+A+1/2\right)} dt
+\label{final-Splitting-Prob}
+\end{split}
+\end{equation}
+%\end{widetext}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%CHANGE!!!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Simulation Details}
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.2\textwidth]{2-Hairpin-only.eps}
+\caption{Initial structure of the DNA hairpin (PDB ID:1D16). The unfolding of the hairpin are performed through 
+SMD simulation at different pulling forces.} 
+\label{Structures-SI}
+\end{figure}
+
+\begin{figure}[t!]
+\includegraphics[width=0.48\textwidth]{3-Graph-SA-Fig1.eps}
+\caption{Splitting probabilities for both (a) symmetric and (b) asymmetric bistable potentials
+calculated from Eqn. (\ref{final-Splitting-Prob}) and its corresponding free energy profiles.
+Splitting probabilitie for symmetric potential, the parameters are chosen as; $A=-0.44$ and ${\cal{B}}=0$
+whereas, for asymmetric potential, the parameters are A=$-0.44$ and ${\cal{B}}=0.0717$. The other parameters 
+are; $k_{B}T=16.54$ pN nm and $k_{s}=1.0$ pN nm$^{-1}$. For the calculation of $S_{p}(x)$ from the 
+symmetric and asymmetric potentials, the experimental diffusion coefficients $D_{1}=0.1$ nm${}^{2}$ $\mu$s${}^{-1}$ and 
+$D_{1}=0.5$ nm$^{2}$ $\mu$s$^{-1}$ are taken from the unfolding experiments of the DNA hairpins $20TS10/T4$ and 
+$20TS06/T4$, respectively \cite{neupane2012transition}.} 
+\label{Splitting-Theory-Exp}
+\end{figure}
+
+Implicit SMD simulations with appropriate force fields are also performed to calculate $S_{p}(x)$ and the corresponding
+PMF for the unfolding of T$4$ DNA hairpin with different pulling forces, $f$. Initial coordinate of the DNA hairpin is 
+taken from Research Collaboratory for Structural Bioinformatics Protein Data Bank (RCSB PDB) with PDB ID: 
+1D16 (refer to Figures {\ref{Structures-SI}}).
+The SMD simulations are performed implicitly for DNA hairpin using AMBER $leaprc.DNA.bsc1$ and $leaprc.DNA.OL15$
+force fields \cite{galindo2016assessing} with NAMD-$2.14$ suite of programs \cite{phillips2005scalable}.
+Energy of each system is minimized to remove all unfavorable interactions in the molecules followed by raising 
+the temperature to $300$ K in two steps. Equilibration of the systems are done for $5$ ns without using any periodic 
+boundary conditions (PBC) and then multiple production runs at constant temperature (through Langevin thermostat 
+\cite{van1988leap}) are carried out for $20$ ns to completely unfold the DNA. The Born radius cutoff 
+for each atom is fixed to $12.0$ \AA. To unfold the DNA, constant force SMD simulations is performed by applying a 
+constant force on $C5'$ atom of $C1$ residue, while fixing the $C3'$ atom of $G16$ residue of the hairpin. 
+The SMD simulation of this molecule are carried out at different pulling forces (such as $1$, $3$, $5$, $10$, $14$, $15$, $18$, 
+and $25$ pN) to study the dynamics of the multistate conformation transition in the FEL. 
+Here, the reaction coordinate is defined as the extension (i.e., the end-to-end distance between $C3'$ atom of $G16$ 
+residue and $C5'$ atom of $C1$ residue) of the DNA.
+
+\section{Results and Discussions} \label{results-discussions}
+
+\begin{figure*}[t!]
+\includegraphics[width=0.75\textwidth]{4-Graph-High-Low-pN-Fig2.eps}
+\caption{Modulating the strength of $f$ on one end of the DNA hairpin and the calculation of $S_{p}(x)$.
+Pulling at (a) low and (b) high constant forces (CF) show the two and three state conformational transitions of the hairpin, 
+respectively which is further confirmed by analyzing the PMF and PDF from $S_{p}(x)$ data.} 
+\label{Splitting-DNA-Low-High-pN}
+\end{figure*}
+
+For a simple two-state transition of the molecule in the conformational energy landscape across a 
+potential barrier, $S_{p(x_{B})}$ is zero ($S_{p(x_{A})} \approx 1$) when the molecule lies in the 
+left well, while $S_{p(x_{B})} \approx 1$ for the other case. 
+Figures \ref{Splitting-Theory-Exp}(a) and \ref{Splitting-Theory-Exp}(b) depict the splitting probabilities
+for both symmetric and asymmetric bistable potentials calculated from Eqn. (\ref{final-Splitting-Prob}) and its 
+corresponding free energy profiles.
+For the symmetric potential, $S_{p}(x)$ is 
+$0.5$ at the transition state, which gives a sigmoidal curve. For the asymmetric potential, $S_{p}(x)$ deviates 
+from this value as the (un)folding probability of the biomolecule changes along the reaction 
+coordinate i.e. molecular extension and a non-sigmoidal curve is obtained. $S_{p}(x)$ calculated from theory 
+(solid line) is compared with those obtained from experiments \cite{manuel2015reconstructing} (square symbol) 
+for the folding hairpins $20TS10/T4$ and $20TS06/T4$ (refer to Figure \ref{Splitting-Theory-Exp}). 
+Here, $S_{p}(x)$ calculated from Eqn. (\ref{final-Splitting-Prob}) is in excellent agreement with those obtained 
+from the experiments for both symmetric and asymmetric potentials. 
+
+The empirical splitting probability of the unfolding of the DNA hairpin may be directly estimated from the 
+simulated trajectory of a finite duration, $\tau$ as\cite{covino2019molecular,manuel2015reconstructing,chodera2011splitting}
+\begin{equation}
+S_{p}(x)=\frac{\int_{0}^{\tau}\delta(x-x(t))H_{f}(t)dt}{\int_{0}^{\tau}\delta(x-x(t))dt}; \quad\ t\in[0,\tau]\ \&\ x\in[a,b]
+\label{Empirical-SP}
+\end{equation}
+where, $H_{f}$ denotes the hitting function which monitors the simulation trajectory for a definite duration of time 
+$\tau$. The function $H_{f}(t)=1$ if the trajectory reaches $a$
+(folded state) just before $b$ (unfolded state) just after time $t$, otherwise $H_{f}(t)=0$
+(refer to Figure \ref{Schematic-Splitting}). Thus, the numerator of the above equation gives the number of 
+trajectories that crosses $x$ and reaches the boundary $a$ before $b$ and the denominator counts the total 
+number of such crossings. 
+
+For a diffusive motion governed by the overdamped Langevin equation along $x$, the probability of $x\in[a,b]$ 
+that hits the boundary $a$ before $b$ immediately is described by
+\cite{makarov2021barrier,berezhkovskii2020nonequilibrium,covino2019molecular,manuel2015reconstructing,chodera2011splitting}
+\begin{equation}
+S_{p(a)}(x)=1-S_{p(b)}(x)=\frac{\int_{x}^{b}D^{-1}(x')e^{\beta U(x')}dx'}{\int_{a}^{b}D^{-1}(x')e^{\beta U(x')}dx'}
+\label{OLE-SP}
+\end{equation}
+here, the coordinate independent diffusion coefficient is $D$ and $\beta=1/k_{B}T$ is a measure of the
+thermal energy. Thus, the effective potential, $U(x)$, for any two-state conformational transition 
+(i.e., folding/unfolding) may be calculated from Eqn. (\ref{OLE-SP}) as 
+\begin{equation}
+U(x)=k_{B}T \ln \frac{dS_{p(a)}(x)}{dx}
+\label{generalized-PDF}
+\end{equation} 
+This equation represents the generalized expression for the ``committor inversion'' which is used to 
+reconstruct the PMF for the folding/unfolding transition of biomolecules and is independent of the 
+friction coefficient. Thus, $S_p(x)$ encodes the free energy profile that quantifies the dynamics of 
+such two-state transitions. The splitting probability profile depends on the strength of the pulling force.
+
+\begin{figure}[t!]
+\includegraphics[width=0.45\textwidth]{5-Graph-Rate-High-Low-S4.eps}
+\caption{Rate of unfolding versus pulling forces of the selected T$4$ DNA hairpin at low and 
+high forces. At low forces, the unfolding rate is high, while at high forces, lower values of the rate is obtained.} 
+\label{Rate-High-Low}
+\end{figure}
+
+\begin{table*}[t!]
+\centering
+\begin{tabular}{ccccccc}
+\hline\hline
+{\bf{Force}} & {${\overline{\tau}_{{F}\to{I}}}$} {{(ns)}} &  ${k_{{F}\to{I}}}$ (ns$^{-1}$) &  {${\overline{\tau}_{{I}\to{U}}}$} {{(ns)}}  
+ &  ${k_{{I}\to{U}}}$ (ns$^{-1}$)  &  {${\overline{\tau}_{{F}\to{U}}}$} {{(ns)}}  & ${k_{{F}\to{U}}}$ (ns$^{-1}$)  \\
+ \hline
+$1$ pN  & $-$ & $-$ & $-$ & $-$ & $0.14$ & $7.14$ \\
+$2$ pN  & $-$ & $-$ & $-$ & $-$ & $0.13$ & $7.69$ \\
+$3$ pN  & $-$ & $-$ & $-$ & $-$ & $0.12$ & $8.33$ \\
+$5$ pN  & $-$ & $-$ & $-$ & $-$ & $0.11$ & $9.09$ \\
+$6$ pN  & $-$ & $-$ & $-$ & $-$ & $0.10$ & $10.00$ \\
+$10$ pN  & $0.03\pm{0.00}$ & $37.44\pm{2.03}$  & $0.09\pm{0.01}$ & 
+$13.21\pm{1.63}$ & $2.01\pm{0.09}$ & $0.53\pm{0.03}$ \\
+$15$ pN  & $0.05$ & $20.00$ & $0.07$ & $14.28$ & $1.49$ & $0.67$ \\
+$18$ pN  & $0.07$ & $14.28$ & $0.05$ & $20.00$ & $1.32$ & $0.75$ \\
+$20$ pN  & $0.08$ & $13.33$ & $0.05$ & $20.00$ & $1.20$ & $0.83$ \\
+$25$ pN  & $0.15$ & $6.66$ & $0.42$ & $2.38$ & $1.06$ & $0.94$ \\
+\hline\hline
+\end{tabular}
+\caption{Mean first passage time ($\overline{\tau}$) and the rate ($k$) for the conformational transition of DNA hairpin 
+at different pulling forces. At lower forces, two-state transition is obtained, whereas, at higher forces a 
+three-state hairpin transition is occurred in the FEL. Here, $F$, $I$ and $U$ denote the 
+folded, intermediate and the unfolded state of the hairpin, respectively.}
+\label{MFPT-Rate-Table}
+\end{table*} 
+
+\begin{figure}[b!]
+\includegraphics[width=0.49\textwidth]{6-Graph-DNA-FigS2.eps}
+\caption{SMD simulation of DNA hairpin at constant $f=10$ pN. (a) Molecular extension versus
+simulation time plot shows for $50$ independent trajectories which demonstrate three-state transitions 
+of the hairpin.
+From these simulation data (b) $S_{p}(x)$ of these conformational changes are calculated. Other dynamical
+properties such as (c) PMF, (d) PDF and (e) first derivative of PDF are obtained directly from the calculated $S_{p}(x)$ that 
+clearly show the three-state transitions. The error bars are calculated from $50$ independent trajectories that begin
+with different initial velocities.} 
+\label{Splitting-DNA-10pN}
+\end{figure}
+
+The dynamics of the hairpin is extensively studied for different values of $f$ ranging from low to high,
+as shown in Figure \ref{Splitting-DNA-Low-High-pN}. $S_{p}(x)$ varies as a function of the pulling force $f$, 
+applied at one end of the hairpin. Therefore, the shape of the PMFs and the curvature of the potential barrier
+for these conformational switches are also a function of $f$ as it is directly derived from $S_{p}(x)$.
+At high forces, $f\ge{7}$ pN, an intermediate state is populated in the conformational 
+landscape between the fully folded and the unfolded state, which represents the three-state hairpin transition 
+(Figure \ref{Splitting-DNA-Low-High-pN}(b)). 
+While, at low $f$ ($<{7}$ pN), the hydrogen bonds between the guanine and cytosine base pairs of the T$4$ hairpin break 
+slowly merging the intermediate state with the unfolded state resulting in a broad unfolded well. Therefore, only 
+a two-state transition is observed in the conformational energy landscape for low pulling forces, which is 
+further confirmed from the evaluation of the PDF (Figure \ref{Splitting-DNA-Low-High-pN}(a)). 
+This suggests that the conformational transitions of the DNA hairpins depend on the strength of the applied forces. 
+For both cases, the native basin is found to be deeper and narrower than the other potential well(s), which implies 
+that the committor line at $0.5$ is shifted towards the deeper well. Here, we also estimate the transition 
+rates for the fold/unfold transition in the complex unfolding energy landscape of the hairpin (${F}\to{I}\to{U}$) with varying 
+$f$ (refer to Table \ref{MFPT-Rate-Table}). The mean first passage time (MFPT, $\overline{\tau}$) for multiple distinct two-state
+transitions i.e. $F\to{I}$ and $I\to{U}$ (at higher $f$) and $F\to{U}$ (at lower $f$) is evaluated from the 
+extension vs time simulation data, which is directly correlated to the rate of transitions as 
+$k(f)={\overline{\tau}^{-1}}(f)$. 
+For an increase in the applied force at one end of the hairpin, the transition rate for $F\to{I}$ decreases and the 
+potential barrier between $F$ and $I$ becomes sharper, which is committed towards both sides of the well.
+The rates of unfolding ($k_{F\to{U}}$) of T$4$ DNA hairpin at different low and high forces are shown in Figure 
+\ref{Rate-High-Low} and Table \ref{MFPT-Rate-Table}. At low forces, $k_{F\to{U}}$ is much higher as compared to that at higher 
+forces. Since, only folded and unfolded states of the hairpin are populated at low forces, therefore, 
+the MFPT of unfolding of the hairpin is less resulting in a higher rate of transition. While, at high forces, 
+an intermediate state is populated that lies in between the folded and unfolded states, which increases the MFPT of the 
+unfolded state with a lower value of the unfolding rate. Also, in the low force regime,
+$k_{F\to{U}}$ increases linearly with pulling forces, whereas for higher forces, $k_{F\to{U}}$ practically 
+remains constant.
+
+A total of $50$ independent SMD simulations are performed at a constant force of $f=10$ pN  
+for the selected T$4$ DNA hairpin to investigate its dynamics.
+A three state transition of the hairpin is clearly observed 
+from the simulation data (Figure \ref{Splitting-DNA-10pN}(a)). Here, $S_{p}(x)$ is directly determined from 
+the simulation data (Figure \ref{Splitting-DNA-10pN}(b)) within the interval $[a,b]$ and the PMF is reconstructed 
+(Figure \ref{Splitting-DNA-10pN}(c)) from this probability using the committor inversion using 
+Eqn. \ref{generalized-PDF}. 
+Here, $S_{p}(x)$ is the combination of two non-sigmoidal curves which 
+indicate three conformational states of the hairpin with unequal energy, which is reflected in its PMF profile. 
+The apparent PMF calculated directly from the molecular trajectory provides inaccurate values of 
+the barrier height \cite{makarov2021barrier,berezhkovskii2020nonequilibrium}, whereas the PMF obtained 
+from $S_{p}(x)$ predicts an exact value of the height/curvature of the potential barrier. For this case, the 
+height of the first free energy barrier, $\Delta G_1^\ddag=3.93$ kCal/mol and the second barrier is obtained at 
+$\Delta G_2^\ddag=1.97$ kCal/mol, which confirms that the native/folded state of the hairpin is more stable 
+than the other states, i.e. intermediate and the unfolded states, I and U. 
+The first transition (i. e. ${F}\to{I}$) is considered as the rate limiting step for these conformational changes. 
+The PDF of the unfolding of the hairpin
+also confirms that the native state is more populated and the intermediate state is the least populated at $f=10$ pN 
+(Figure \ref{Splitting-DNA-10pN}(d)). The derivative of the probability distribution, 
+${\dot{p}(x)}=\frac{dp(x)}{dx}$ gives the exact location of the potential well and the number of transitions in the 
+free energy landscape (Figure \ref{Splitting-DNA-10pN}(e)).
+
+\section {Conclusions}
+
+In this study, we show that the free energy/PMF profile may be extracted from the splitting probability,
+which clearly shows that the conformational transitions are a function of the pulling force. 
+The exact potential of mean force that determines the height and curvature of the potential barrier 
+is calculated from the splitting probability using ``committor inversion''. The shape of the PMF changes 
+by modulating the pulling forces applied at one end of the molecule along the reaction coordinate. 
+At low forces, some states are less populated or unpopulated, while at higher forces, all states are 
+populated and are clearly discernible. Thus, the dynamics of structural transitions of the DNA hairpin 
+may be tuned by regulating the pulling force, which may be directly correlated to the free energy 
+profile along an optimized reaction coordinate. Force induced (un)folding of the DNA hairpin provides 
+an insight to the dynamics of structural transitions across activated energy barriers to their respective
+functionally active conformations.
+
+\section*{Supplementary Information}
+See Supplementary Information for
+the solution of GLE under an asymmetric potential; 
+conversion of the GLE to an effective Fokker-Planck equation;
+the solution of effective Fokker-Planck equation;   
+calculation of the normalization constants ${C_0}$ and ${C_{n+1}}$.
+
+\section*{Conflicts of Interest}
+There are no conflicts to declare.
+
+\section*{Acknowledgments}
+Vishal Singh acknowledges Delhi School of Public Health, Institution of Eminence (DSPH-IoE), 
+University of Delhi for the financial support in form of a fellowship (IoE/2021/MKPDF/DSPH/143).
+
+\bibliography{Split-Prob} 
+\bibliographystyle{rsc} 
+
+\end{document}

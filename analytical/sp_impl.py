@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 import scipy
 
-from C import COL_NAME_X, COL_NAME_SP_INTEGRAND, COL_NAME_SP, COL_NAME_PMF_RECONSTRUCTED, mp_execute, to_csv
+from C import COL_NAME_X, COL_NAME_SP_INTEGRAND, COL_NAME_SP, COL_NAME_PMF_RECONSTRUCTED, mp_execute, to_csv, \
+    COL_NAME_PDF_RECONSTRUCTED
 from double_well_pmf import phi_scaled, double_well_pmf_scaled
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -167,6 +168,40 @@ def pmf_re(x: np.ndarray, sp: np.ndarray, kb_t: float):
     return kb_t * np.log(-_grad)
 
 
+# Boltzmann Factor (Probability Density Function) from PMF (assuming Thermal Equilibrium)
+def boltzmann_factor(pmf: np.ndarray | float, kb_t: float, normalize: bool = True, scale: float = 1) -> np.ndarray:
+    pdf_arr = scale * np.exp(-pmf / kb_t)
+    if normalize and isinstance(pmf, np.ndarray):
+        s = np.sum(pdf_arr)
+        if s != 0:
+            pdf_arr /= s
+
+    return pdf_arr
+
+
+def pdf_from_pmf(pmf: np.ndarray, x: np.ndarray | None,
+                 out_file_name: str | None,
+                 kb_t: float,
+                 normalize: bool = True,
+                 scale: float = 1,
+                 out_x_col_name: str = COL_NAME_X,
+                 out_pdf_col_name: str = COL_NAME_PDF_RECONSTRUCTED) -> np.ndarray | None:
+    """
+    Reconstructs Probability Density Function from PMF
+    """
+    pdf_arr = boltzmann_factor(pmf=pmf, kb_t=kb_t,
+                               normalize=normalize, scale=scale)
+
+    if out_file_name:
+        _df = pd.DataFrame()
+        if x is not None:
+            _df[out_x_col_name] = x
+        _df[out_pdf_col_name] = pdf_arr
+        to_csv(_df, out_file_name)
+
+    return pdf_arr
+
+
 def _create_sp_dataframe(x: np.ndarray,
                          sp: np.ndarray,
                          sp_integrand: np.ndarray | None,
@@ -292,6 +327,7 @@ def cond_prob(x: float, t: float, x0: float, t0: float,
 # Vectorized Conditional Probability
 def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
                   x0: np.ndarray | float, t0: np.ndarray | float,
+                  normalize: bool,
                   n_max: np.ndarray | int,
                   cyl_dn_a: np.ndarray | float,
                   kb_t: np.ndarray | float,
@@ -304,15 +340,25 @@ def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
                   phi_offset: np.ndarray | float = 0,
                   phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
     _vec = np.vectorize(cond_prob, otypes=[np.longdouble])
-    return _vec(x=x, t=t, x0=x0, t0=t0,
-                n_max=n_max, cyl_dn_a=cyl_dn_a,
-                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
-                depth=depth, bias=bias,
-                x_offset=x_offset, x_scale=x_scale,
-                phi_offset=phi_offset, phi_scale=phi_scale)
+    y_arr = _vec(x=x, t=t, x0=x0, t0=t0,
+                 n_max=n_max, cyl_dn_a=cyl_dn_a,
+                 kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                 depth=depth, bias=bias,
+                 x_offset=x_offset, x_scale=x_scale,
+                 phi_offset=phi_offset, phi_scale=phi_scale)
+
+    if normalize and isinstance(x, np.ndarray):
+        # y_arr -= np.min(y_arr)
+        tot = scipy.integrate.trapezoid(y=y_arr, x=x)
+        if tot > 0:
+            y_arr /= tot
+
+        y_arr -= np.min(y_arr)
+
+    return y_arr
 
 
-## Definte Integral of cond_prob over x
+## Definite Integral of cond_prob over x
 def cond_prob_integral_x(x0: float,
                          t0: float, t: float,
                          x_a: float, x_b: float, x_samples: int,
@@ -328,7 +374,7 @@ def cond_prob_integral_x(x0: float,
                          phi_offset: float = 0,
                          phi_scale: float = 1) -> np.longdouble:
     x_arr = np.linspace(x_a, x_b, num=x_samples, endpoint=True)
-    y_arr = cond_prob_vec(x=x_arr, t=t, x0=x0, t0=t0,
+    y_arr = cond_prob_vec(x=x_arr, t=t, x0=x0, t0=t0, normalize=False,
                           n_max=n_max, cyl_dn_a=cyl_dn_a,
                           kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
                           depth=depth, bias=bias,

@@ -1,9 +1,9 @@
 import math
-import numpy as np
-import scipy
-import matplotlib.pyplot as plt
 
-from C import minimize_func
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from C import *
 
 """
 Models Double-Well PMF with depth and bias parameters
@@ -18,6 +18,42 @@ The corresponding Probability Distribution and PMF are given as
         Probability distribution Peq(x) = phi(A,x)^-2
         PMF = -Kb * T * ln(Peq(x)) = 2 * Kb * T * ln(phi(A,x))
 """
+
+
+def parabolic_pmf(x: np.ndarray,
+                  ks: float,
+                  x_offset: float = 0,
+                  x_scale: float = 1,
+                  pmf_offset: float = 0,
+                  pmf_scale: float = 1,
+                  out_file_name: str | None = None,
+                  out_col_name_x: str = COL_NAME_X,
+                  out_col_name_pmf: str = COL_NAME_PMF) -> np.ndarray:
+    """
+        Transform x ->  x = (x + x_offset) * x_scale
+
+        Calculate PMF -> pmf = 0.5 * ks * x^2
+
+        Transform pmf -> pmf = (pmf + pmf_Offset) * pmf_scale
+
+    :return: the parabolic pmf, after offsetting and scaling
+    """
+    pmf = pmf_scale * (0.5 * ks * np.square((x + x_offset) * x_scale) + pmf_offset)
+
+    if out_file_name:
+        df = pd.DataFrame({
+            out_col_name_x: x,
+            out_col_name_pmf: pmf
+        })
+
+        with open(out_file_name, "w") as f:
+            f.write(f"{COMMENT_TOKEN} ------------- PARABOLIC PMF ----------------\n")
+            f.write(f"{COMMENT_TOKEN} INPUT Spring constant (Ks): {ks}\n")
+            f.write(f"{COMMENT_TOKEN} Parameters => x_offset: {x_offset} | x_scale: {x_scale} | pmf_offset: {pmf_offset} | pmf_scale: {pmf_scale}\n")
+            to_csv(df, path_or_buf=f, mode="a")
+
+    return pmf
+
 
 def phi(x: np.ndarray,
         kb_t: float,
@@ -56,17 +92,18 @@ def phi(x: np.ndarray,
     _x_hyper = _hyper1f1_coeff * _xsq
 
     # Odd solution of weber equation
-    _y1: np.ndarray = scipy.special.hyp1f1((depth / 2) + 0.25, 0.5, _x_hyper)
-
-    if bias != 0:
-        # Even solution of weber equation
-        _y2 = bias * math.sqrt(ks / kb_t) * x * scipy.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
+    if abs(depth + 0.5) <= 1e-10:  # Tolerance for depth
+        _y1 = 1
     else:
-        _y2 = None
+        _y1 = scipy.special.hyp1f1((depth / 2) + 0.25, 0.5, _x_hyper)
+
+    # Even solution of weber equation
+    if abs(bias - 0) <= 1e-10:  # Tolerance for bias
+        _y2 = 0
+    else:
+        _y2 = bias * math.sqrt(ks / kb_t) * x * scipy.special.hyp1f1((depth / 2) + 0.75, 1.5, _x_hyper)
 
     # Φ(A,x) = y1(A,x) + bias * y2(A,x)
-    if _y2 is None:
-        return _common * _y1
     return _common * (_y1 + _y2)
 
     ## NOTE: Final Probability distribution Peq(x) = Φ(A,x)^-2

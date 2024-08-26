@@ -55,8 +55,8 @@ if __name__ == '__main__':
                      time_instant=time_instant,
                      n_max=n_max, cyl_dn_a=cyl_dn_a,
                      kb_t=kb_t, ks=ks, friction_coefficient=friction_coefficient,
-                     x_integration_samples_sp_first_princ=x_integration_samples_first_princ,
-                     x_integration_samples_sp_final_eq=x_integration_samples_sp_final_eq,
+                     x_integration_samples_first_princ=x_integration_samples_first_princ,
+                     x_integration_samples_final_eq=x_integration_samples_sp_final_eq,
                      time_integration_start=time_integration_start,
                      time_integration_stop=time_integration_stop,
                      time_integration_samples=time_integration_samples)
