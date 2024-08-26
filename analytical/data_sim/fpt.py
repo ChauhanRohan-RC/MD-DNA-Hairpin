@@ -1,12 +1,11 @@
 """
 Script to calculate first passage time distribution from Simulation Trajectory
 """
-from functools import reduce
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
-import matplotlib.pyplot as plt
 
 ## UNITS: Distance (Å)
 
@@ -28,7 +27,7 @@ x_b: float = 38.41  # TODO: right Boundary (Å)
 ext_bin_count: int = 1000
 _ext_bin_size: float = (x_b - x_a) / ext_bin_count
 
-normalize_pdf = True
+normalize_pdf = False
 
 ## Output --------------------------------------------------------------
 output_fpt_data_file = "fpt-2.csv"

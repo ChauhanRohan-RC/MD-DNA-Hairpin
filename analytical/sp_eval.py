@@ -21,7 +21,9 @@ Script to Evaluate quantities implemented in "sp_impl.py"
 class SpEval:
     def __init__(self, x_a: float, x_b: float, x_0: float, t_0: float, time_instant: float,
                  n_max: int, cyl_dn_a: float,
-                 kb_t: float, ks: float, friction_coefficient: float,
+                 kb_t: float, ks: float,
+                 beta: float,  # homogeneity coefficient beta [0, 1]
+                 friction_coefficient_beta: float,
                  depth: float = -0.49, bias: float = 0,
                  x_offset: float = 0, x_scale: float = 1,
                  phi_offset: float = 0, phi_scale: float = 1,
@@ -42,8 +44,13 @@ class SpEval:
 
         @param kb_t: Thermal Energy (Kcal/mol)
         @param ks: force-constant i.e. stiffness of optical trap (kcal/mol/Å**2)
-        @param friction_coefficient: coefficient of friction (kcal.sec/mol/Å**2), denoted by eta_1.
+        @param beta: the homogeneity coefficient, in range [0, 1].
+                    1 => completely homogenous (diffusive) medium
+                    0 => completely heterogeneous (complex) medium
+        @param friction_coefficient_beta: beta'th coefficient of friction [ unit: (s^beta).kcal/mol/Å**2 ], denoted by eta_beta.
                                      Optimal value In range (0.5 - 2.38) x 10-7
+
+                                     beta'th diffusion coefficient = KbT / friction_coefficient_beta
 
         @param depth: "depth" parameter of the double-well pmf (unit-less). In range (-0.5, 0]
         @param bias: "bias" parameter of the double-well pmf (unit-less). Must be < critical_bias(depth)
@@ -71,11 +78,12 @@ class SpEval:
         # Main parameters -----------------------------
         self.kb_t = kb_t  # kcal/mol
         self.ks = ks  # Force constant (kcal/mol/Å**2)
-        self.friction_coeff = friction_coefficient  # friction coeff (eta_1) (in kcal.sec/mol/Å**2). In range (0.5 - 2.38) x 10-7
+        self.beta = beta  # Homogeneity coefficient, in range [0, 1] where 1 is fully homogenous (diffusive) media
+        self.friction_coeff_beta = friction_coefficient_beta  # friction coeff (eta_beta) (unit: (s^beta) . kcal/mol/Å**2). In range (0.5 - 2.38) x 10-7
         self.n_max = n_max
         self.cyl_dn_a = cyl_dn_a  # "a" param of cylindrical function
 
-        self.d1 = self.kb_t / self.friction_coeff  # diffusion coefficient with beta=1     (in Å**2/s)
+        self.d1 = self.kb_t / self.friction_coeff_beta  # diffusion coefficient with beta=1     (in Å**2/s)
         print(f"Diffusion Coefficient D1: {self.d1} Å**2/s")
 
         # Fit parameters
@@ -166,7 +174,8 @@ class SpEval:
 
         return sp_impl.cond_prob_vec(x=x, t=t, x0=x0, t0=t0, normalize=normalize,
                                      n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
-                                     kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                     kb_t=self.kb_t, ks=self.ks,
+                                     beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
                                      depth=self.depth, bias=self.bias,
                                      x_offset=self.x_offset, x_scale=self.x_scale,
                                      phi_offset=self.phi_offset, phi_scale=self.phi_scale)
@@ -183,26 +192,46 @@ class SpEval:
                                                 x_a=self.x_a, x_b=self.x_b,
                                                 x_samples=self.x_integration_samples_first_princ,
                                                 n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
-                                                kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                                kb_t=self.kb_t, ks=self.ks,
+                                                beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
                                                 depth=self.depth, bias=self.bias,
                                                 x_offset=self.x_offset, x_scale=self.x_scale,
                                                 phi_offset=self.phi_offset, phi_scale=self.phi_scale)
 
-    def first_pass_time(self, x0: np.ndarray | float, t0: np.ndarray | float | None = None,
-                        t: np.ndarray | float | None = None):
+    def first_pass_time_first_princ(self, x0: np.ndarray | float,
+                                    t0: np.ndarray | float | None = None,
+                                    t: np.ndarray | float | None = None):
         if t0 is None:
             t0 = self.t_0
 
         if t is None:
             t = self.time_instant
 
-        return sp_impl.first_pass_time_vec(x0=x0, t0=t0, t=t,
-                                           x_a=self.x_a, x_b=self.x_b, x_samples=self.x_integration_samples_first_princ,
-                                           n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
-                                           kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
-                                           depth=self.depth, bias=self.bias,
-                                           x_offset=self.x_offset, x_scale=self.x_scale,
-                                           phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+        return sp_impl.first_pass_time_first_princ_vec(x0=x0, t0=t0, t=t,
+                                                       x_a=self.x_a, x_b=self.x_b,
+                                                       x_samples=self.x_integration_samples_first_princ,
+                                                       n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                                       kb_t=self.kb_t, ks=self.ks,
+                                                       beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
+                                                       depth=self.depth, bias=self.bias,
+                                                       x_offset=self.x_offset, x_scale=self.x_scale,
+                                                       phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
+    def first_pass_time_final_eq(self, x0: np.ndarray | float | None, t: np.ndarray | float | None):
+        if x0 is None:
+            x0 = self.x_0
+
+        if t is None:
+            t = self.time_instant
+
+        return sp_impl.first_pass_time_final_eq_vec(x0=x0, t=t,
+                                                    x_a=self.x_a, x_b=self.x_b,
+                                                    n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                                    kb_t=self.kb_t, ks=self.ks,
+                                                    beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
+                                                    depth=self.depth, bias=self.bias,
+                                                    x_offset=self.x_offset, x_scale=self.x_scale,
+                                                    phi_offset=self.phi_offset, phi_scale=self.phi_scale)
 
     # ==========================================================================================
     # ----------------------------  SPLITTING PROBABILITY Wrappers  ---------------------------
@@ -231,7 +260,8 @@ class SpEval:
                                           reconstruct_pmf=reconstruct_pmf,
                                           out_data_file=out_data_file,
                                           n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
-                                          kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                          kb_t=self.kb_t, ks=self.ks,
+                                          beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
                                           depth=self.depth, bias=self.bias,
                                           x_offset=self.x_offset, x_scale=self.x_scale,
                                           phi_offset=self.phi_offset, phi_scale=self.phi_scale)
@@ -259,10 +289,14 @@ class SpEval:
                                    reconstruct_pmf=reconstruct_pmf,
                                    out_data_file=out_data_file,
                                    n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
-                                   kb_t=self.kb_t, ks=self.ks, friction_coeff=self.friction_coeff,
+                                   kb_t=self.kb_t, ks=self.ks,
+                                   beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
                                    depth=self.depth, bias=self.bias,
                                    x_offset=self.x_offset, x_scale=self.x_scale,
-                                   phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+                                   phi_offset=self.phi_offset, phi_scale=self.phi_scale,
+                                   t_integration_start=self.t_integration_start,
+                                   t_integration_stop=self.t_integration_stop,
+                                   t_integration_samples=self.t_integration_samples)
 
     def sp_apparent(self, out_data_file: str | None,
                     x_a: float | None = None, x_b: float | None = None,
@@ -440,14 +474,18 @@ class SpEval:
             plt.savefig(out_fig_file)
         plt.show()
 
-    def _fpt_vs_t_worker(self, t: np.ndarray):
-        return self.first_pass_time(x0=self.x_0, t0=self.t_0, t=t)
+    def _fpt_vs_t_first_princ_worker(self, t: np.ndarray):
+        return self.first_pass_time_first_princ(x0=self.x_0, t0=self.t_0, t=t)
+
+    def _fpt_vs_t_final_eq_worker(self, t: np.ndarray):
+        return self.first_pass_time_final_eq(x0=self.x_0, t=t)
 
     # First passage time
-    def cal_fpt_vs_t(self, t: np.ndarray, out_data_file: str | None, out_fig_file: str | None):
+    def cal_fpt_vs_t(self, t: np.ndarray, use_final_eq: bool, out_data_file: str | None, out_fig_file: str | None):
         # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
 
-        fpt = mp_execute(self._fpt_vs_t_worker, t, DEFAULT_PROCESS_COUNT)
+        worker = self._fpt_vs_t_final_eq_worker if use_final_eq else self._fpt_vs_t_first_princ_worker
+        fpt = mp_execute(worker, t, DEFAULT_PROCESS_COUNT)
 
         if out_data_file:
             df = pd.DataFrame({

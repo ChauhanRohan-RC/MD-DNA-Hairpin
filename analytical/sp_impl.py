@@ -1,11 +1,12 @@
-import math
 import warnings
 
+import math
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
 import scipy
 
+import C
 from C import COL_NAME_X, COL_NAME_SP_INTEGRAND, COL_NAME_SP, COL_NAME_PMF_RECONSTRUCTED, mp_execute, to_csv, \
     COL_NAME_PDF_RECONSTRUCTED
 from double_well_pmf import phi_scaled, double_well_pmf_scaled
@@ -77,7 +78,11 @@ def derivative(func, x0: float, dx: float):
     return scipy.misc.derivative(func, x0=x0, dx=dx)
 
 
-def mittag_leffler(x: int | float, a: int | float, b: int | float, k_max: int = 50) -> np.longdouble:
+def mittag_leffler(x: int | float, a: int | float, b: int | float, k_max: int = 10) -> np.longdouble:
+    # Special Cases: causes Overflow
+    # if a == 1 and b == 1:
+    #     return np.longdouble(math.exp(x))
+
     _sum = np.longdouble(0)
 
     _x_pow = np.longdouble(1)
@@ -94,6 +99,10 @@ def mittag_leffler_vec(x: np.ndarray | int | float,
                        a: np.ndarray | int | float,
                        b: np.ndarray | int | float,
                        k_max: np.ndarray | int = 50) -> np.ndarray | np.longdouble:
+    # Special Cases: causes Overflow
+    # if a == 1 and b == 1:
+    #     return np.exp(x, dtype=np.longdouble)
+
     _vec = np.vectorize(mittag_leffler, otypes=[np.longdouble])
     return _vec(x=x, a=a, b=b, k_max=k_max)
 
@@ -266,60 +275,70 @@ def _handle_sp_integrand(x: np.ndarray,
 # ------------------- FIRST PRINCIPLE IMPLEMENTATION  -----------------------
 # ==========================================================================
 
+# Normalization Constant C0^2
+def c0_sq(depth: float, bias: float) -> float:
+    bias_crit = critical_bias(depth=depth)
+    return ((bias_crit ** 2) - (bias ** 2)) / (2 * bias_crit)
+
+
+# Normalization Constant Cn^2
+def cn_sq(n: float, depth: float) -> float:
+    a = math.sqrt(2 * math.pi) * C.factorial_cached(n - 1) * ((n - 1) + depth + 0.5)
+    return 1 / a
+
+
 def cond_prob(x: float, t: float, x0: float, t0: float,
               n_max: int,
               cyl_dn_a: float,
               kb_t: float,
               ks: float,
-              friction_coeff: float,
+              beta: float,  # homogeneity coefficient beta [0, 1]
+              friction_coeff_beta: float,
               depth: float,
               bias: float,
               x_offset: float = 0,
               x_scale: float = 1,
               phi_offset: float = 0,
               phi_scale: float = 1) -> np.longdouble:
-    bias_crit = math.sqrt(2) * scipy.special.gamma((depth / 2) + 0.75) / scipy.special.gamma((depth / 2) + 0.25)
-    c0_sq = ((bias_crit ** 2) - (bias ** 2)) / (2 * bias_crit)
-
-    # d1 = kb_t / friction_coeff
-
     def _phi(_x):
         return phi_scaled(_x, kb_t=kb_t, ks=ks,
                           depth=depth, bias=bias,
                           x_offset=x_offset, x_scale=x_scale,
                           phi_offset=phi_offset, phi_scale=phi_scale)
 
-    def _cal_summand(_n: int, inv_fact: float) -> float:
+    def _cal_summand(_n: int) -> float:
         __dn_by_phi_func = dn_by_phi_func(n=_n, dn_a=cyl_dn_a,
                                           kb_t=kb_t, ks=ks,
                                           depth=depth, bias=bias,
                                           x_offset=x_offset, x_scale=x_scale,
                                           phi_offset=phi_offset, phi_scale=phi_scale)
 
-        __pre = inv_fact * (1 / (_n + depth + 0.5))
+        # __pre = inv_fact * (1 / (_n + depth + 0.5))
+        __pre = cn_sq(n=_n + 1, depth=depth)
 
         __der_x = derivative(__dn_by_phi_func, x0=x, dx=1e-4)
         __der_x0 = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
-        __mittag = math.exp(-(_n + depth + 0.5) * (ks / friction_coeff) * t)
+
+        if abs(beta - 1) <= 1e-4:       # tolerance
+            __mittag = math.exp(-(_n + depth + 0.5) * (ks / friction_coeff_beta) * t)
+        else:
+            __mittag = mittag_leffler((ks / friction_coeff_beta) * (t ** beta), a=beta, b=1) ** -(_n + depth + 0.5)
 
         return __pre * __der_x * __der_x0 * __mittag
 
-    _sum: float = np.longdouble(0.0)
-
-    # first term (n = 0)
-    _sum += _cal_summand(0, 1)
-
-    # Rest terms (n > 0)
-    inv_factorial: float = 1.0
-    for n in range(1, n_max):
-        inv_factorial /= n
-        _sum += _cal_summand(n, inv_factorial)
-
     _phi_x = _phi(x)
     _phi_x0 = _phi(x0)
+    _ks_by_kbt_sqrt = math.sqrt(ks / kb_t)
 
-    _first = c0_sq * math.sqrt(ks / kb_t) * (1 / (_phi_x ** 2))
-    _sec = math.sqrt(kb_t / (2 * math.pi * ks)) * (_phi_x0 ** 2) * _sum
+    # First Term
+    _first = c0_sq(depth=depth, bias=bias) * _ks_by_kbt_sqrt * (1 / (_phi_x ** 2))
+
+    # Series
+    _sum: float = np.longdouble(0.0)
+    for n in range(0, n_max):
+        _sum += _cal_summand(n)
+
+    _sec = (1 / _ks_by_kbt_sqrt) * (_phi_x0 ** 2) * _sum
 
     return _first + _sec
 
@@ -332,7 +351,8 @@ def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
                   cyl_dn_a: np.ndarray | float,
                   kb_t: np.ndarray | float,
                   ks: np.ndarray | float,
-                  friction_coeff: np.ndarray | float,
+                  beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                  friction_coeff_beta: np.ndarray | float,
                   depth: np.ndarray | float,
                   bias: np.ndarray | float,
                   x_offset: np.ndarray | float = 0,
@@ -342,7 +362,8 @@ def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
     _vec = np.vectorize(cond_prob, otypes=[np.longdouble])
     y_arr = _vec(x=x, t=t, x0=x0, t0=t0,
                  n_max=n_max, cyl_dn_a=cyl_dn_a,
-                 kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                 kb_t=kb_t, ks=ks,
+                 beta=beta, friction_coeff_beta=friction_coeff_beta,
                  depth=depth, bias=bias,
                  x_offset=x_offset, x_scale=x_scale,
                  phi_offset=phi_offset, phi_scale=phi_scale)
@@ -366,7 +387,8 @@ def cond_prob_integral_x(x0: float,
                          cyl_dn_a: float,
                          kb_t: float,
                          ks: float,
-                         friction_coeff: float,
+                         beta: float,  # homogeneity coefficient beta [0, 1]
+                         friction_coeff_beta: float,
                          depth: float,
                          bias: float,
                          x_offset: float = 0,
@@ -376,7 +398,8 @@ def cond_prob_integral_x(x0: float,
     x_arr = np.linspace(x_a, x_b, num=x_samples, endpoint=True)
     y_arr = cond_prob_vec(x=x_arr, t=t, x0=x0, t0=t0, normalize=False,
                           n_max=n_max, cyl_dn_a=cyl_dn_a,
-                          kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                          kb_t=kb_t, ks=ks,
+                          beta=beta, friction_coeff_beta=friction_coeff_beta,
                           depth=depth, bias=bias,
                           x_offset=x_offset, x_scale=x_scale,
                           phi_offset=phi_offset, phi_scale=phi_scale)
@@ -391,7 +414,8 @@ def cond_prob_integral_x_vec(x0: np.ndarray | float,
                              cyl_dn_a: np.ndarray | float,
                              kb_t: np.ndarray | float,
                              ks: np.ndarray | float,
-                             friction_coeff: np.ndarray | float,
+                             beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                             friction_coeff_beta: np.ndarray | float,
                              depth: np.ndarray | float,
                              bias: np.ndarray | float,
                              x_offset: np.ndarray | float = 0,
@@ -403,32 +427,35 @@ def cond_prob_integral_x_vec(x0: np.ndarray | float,
                 t0=t0, t=t,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
-                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
                 depth=depth, bias=bias,
                 x_offset=x_offset, x_scale=x_scale,
                 phi_offset=phi_offset, phi_scale=phi_scale)
 
 
-def first_pass_time(x0: float,
-                    t0: float, t: float,
-                    x_a: float, x_b: float, x_samples: int,
-                    n_max: int,
-                    cyl_dn_a: float,
-                    kb_t: float,
-                    ks: float,
-                    friction_coeff: float,
-                    depth: float,
-                    bias: float,
-                    x_offset: float = 0,
-                    x_scale: float = 1,
-                    phi_offset: float = 0,
-                    phi_scale: float = 1):
+def first_pass_time_first_princ(x0: float,
+                                t0: float, t: float,
+                                x_a: float, x_b: float, x_samples: int,
+                                n_max: int,
+                                cyl_dn_a: float,
+                                kb_t: float,
+                                ks: float,
+                                beta: float,  # homogeneity coefficient beta [0, 1]
+                                friction_coeff_beta: float,
+                                depth: float,
+                                bias: float,
+                                x_offset: float = 0,
+                                x_scale: float = 1,
+                                phi_offset: float = 0,
+                                phi_scale: float = 1):
     def _f(time: float):
         return cond_prob_integral_x(x0=x0,
                                     t0=t0, t=time,
                                     x_a=x_a, x_b=x_b, x_samples=x_samples,
                                     n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                    kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                                    kb_t=kb_t, ks=ks,
+                                    beta=beta, friction_coeff_beta=friction_coeff_beta,
                                     depth=depth, bias=bias,
                                     x_offset=x_offset, x_scale=x_scale,
                                     phi_offset=phi_offset, phi_scale=phi_scale)
@@ -436,26 +463,28 @@ def first_pass_time(x0: float,
     return -derivative(_f, x0=t, dx=1e-10)  # TODO: derivative time step
 
 
-def first_pass_time_vec(x0: np.ndarray | float,
-                        t0: np.ndarray | float, t: np.ndarray | float,
-                        x_a: np.ndarray | float, x_b: np.ndarray | float, x_samples: np.ndarray | int,
-                        n_max: np.ndarray | int,
-                        cyl_dn_a: np.ndarray | float,
-                        kb_t: np.ndarray | float,
-                        ks: np.ndarray | float,
-                        friction_coeff: np.ndarray | float,
-                        depth: np.ndarray | float,
-                        bias: np.ndarray | float,
-                        x_offset: np.ndarray | float = 0,
-                        x_scale: np.ndarray | float = 1,
-                        phi_offset: np.ndarray | float = 0,
-                        phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
-    _vec = np.vectorize(first_pass_time, otypes=[np.longdouble])
+def first_pass_time_first_princ_vec(x0: np.ndarray | float,
+                                    t0: np.ndarray | float, t: np.ndarray | float,
+                                    x_a: np.ndarray | float, x_b: np.ndarray | float, x_samples: np.ndarray | int,
+                                    n_max: np.ndarray | int,
+                                    cyl_dn_a: np.ndarray | float,
+                                    kb_t: np.ndarray | float,
+                                    ks: np.ndarray | float,
+                                    beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                                    friction_coeff_beta: np.ndarray | float,
+                                    depth: np.ndarray | float,
+                                    bias: np.ndarray | float,
+                                    x_offset: np.ndarray | float = 0,
+                                    x_scale: np.ndarray | float = 1,
+                                    phi_offset: np.ndarray | float = 0,
+                                    phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(first_pass_time_first_princ, otypes=[np.longdouble])
     return _vec(x0=x0,
                 t0=t0, t=t,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
-                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
                 depth=depth, bias=bias,
                 x_offset=x_offset, x_scale=x_scale,
                 phi_offset=phi_offset, phi_scale=phi_scale)
@@ -471,7 +500,8 @@ def __sp_first_princ_integrand(x0: float, t0: float,
                                cyl_dn_a: float,
                                kb_t: float,
                                ks: float,
-                               friction_coeff: float,
+                               beta: float,  # homogeneity coefficient beta [0, 1]
+                               friction_coeff_beta: float,
                                depth: float,
                                bias: float,
                                x_offset: float = 0,
@@ -479,12 +509,13 @@ def __sp_first_princ_integrand(x0: float, t0: float,
                                phi_offset: float = 0,
                                phi_scale: float = 1) -> np.longdouble:
     t_arr = np.linspace(t_start, t_stop, num=t_samples, endpoint=True)
-    fpt_arr = first_pass_time_vec(x0, t0=t0, t=t_arr, x_a=x_a, x_b=x_b, x_samples=x_samples,
-                                  n_max=n_max, cyl_dn_a=cyl_dn_a,
-                                  kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
-                                  depth=depth, bias=bias,
-                                  x_offset=x_offset, x_scale=x_scale,
-                                  phi_offset=phi_offset, phi_scale=phi_scale)
+    fpt_arr = first_pass_time_first_princ_vec(x0, t0=t0, t=t_arr, x_a=x_a, x_b=x_b, x_samples=x_samples,
+                                              n_max=n_max, cyl_dn_a=cyl_dn_a,
+                                              kb_t=kb_t, ks=ks,
+                                              beta=beta, friction_coeff_beta=friction_coeff_beta,
+                                              depth=depth, bias=bias,
+                                              x_offset=x_offset, x_scale=x_scale,
+                                              phi_offset=phi_offset, phi_scale=phi_scale)
 
     return scipy.integrate.trapezoid(fpt_arr, t_arr)
 
@@ -497,7 +528,8 @@ def __sp_first_princ_integrand_vec(x0: np.ndarray | float,
                                    cyl_dn_a: np.ndarray | float,
                                    kb_t: np.ndarray | float,
                                    ks: np.ndarray | float,
-                                   friction_coeff: np.ndarray | float,
+                                   beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                                   friction_coeff_beta: np.ndarray | float,
                                    depth: np.ndarray | float,
                                    bias: np.ndarray | float,
                                    x_offset: np.ndarray | float = 0,
@@ -509,7 +541,8 @@ def __sp_first_princ_integrand_vec(x0: np.ndarray | float,
                 t_start=t_start, t_stop=t_stop, t_samples=t_samples,
                 x_a=x_a, x_b=x_b, x_samples=x_samples,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
-                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
                 depth=depth, bias=bias,
                 x_offset=x_offset, x_scale=x_scale,
                 phi_offset=phi_offset, phi_scale=phi_scale)
@@ -526,7 +559,8 @@ def sp_first_principle(x_a: float, x_b: float,
                        cyl_dn_a: float,
                        kb_t: float,
                        ks: float,
-                       friction_coeff: float,
+                       beta: float,  # homogeneity coefficient beta [0, 1]
+                       friction_coeff_beta: float,
                        depth: float,
                        bias: float,
                        x_offset: float = 0,
@@ -560,7 +594,8 @@ def sp_first_principle(x_a: float, x_b: float,
                               args=(t0, t_start, t_stop, t_samples,
                                     x_a, x_b, x_integration_samples,
                                     n_max, cyl_dn_a,
-                                    kb_t, ks, friction_coeff,
+                                    kb_t, ks,
+                                    beta, friction_coeff_beta,
                                     depth, bias,
                                     x_offset, x_scale,
                                     phi_offset, phi_scale))
@@ -578,6 +613,86 @@ def sp_first_principle(x_a: float, x_b: float,
 # ------------------- FINAL EQUATION IMPLEMENTATION  -----------------------
 # ==========================================================================
 
+def first_pass_time_final_eq(x0: float, t: float,
+                             x_a: float, x_b: float,
+                             n_max: int,
+                             cyl_dn_a: float,
+                             kb_t: float,
+                             ks: float,
+                             beta: float,  # homogeneity coefficient beta -> [0, 1]
+                             friction_coeff_beta: float,
+                             depth: float,
+                             bias: float,
+                             x_offset: float = 0,
+                             x_scale: float = 1,
+                             phi_offset: float = 0,
+                             phi_scale: float = 1) -> np.longdouble:
+    def _phi(_x: np.ndarray | float):
+        return phi_scaled(_x, kb_t=kb_t, ks=ks,
+                          depth=depth, bias=bias,
+                          x_offset=x_offset, x_scale=x_scale,
+                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+    _d_beta = kb_t / friction_coeff_beta
+    _phi_x0 = _phi(x0)
+
+    _mittag_x = (ks / friction_coeff_beta) * (t ** beta)
+
+    _pre: float = _d_beta * math.sqrt(ks / kb_t) * (_phi_x0 ** 2) * (t ** (beta - 1)) * mittag_leffler(x=_mittag_x,
+                                                                                                       a=beta, b=beta)
+
+    def _cal_summand(_n: int) -> float:
+        __dn_by_phi_func = dn_by_phi_func(n=_n, dn_a=cyl_dn_a,
+                                          kb_t=kb_t, ks=ks,
+                                          depth=depth, bias=bias,
+                                          x_offset=x_offset, x_scale=x_scale,
+                                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+        __pre = cn_sq(n=_n + 1, depth=depth) * (n + depth + 0.5)
+
+        __der = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
+        __c = __dn_by_phi_func(x_b) - __dn_by_phi_func(x_a)
+
+        if abs(beta - 1) <= 1e-4:       # tolerance
+            __mittag = math.exp(-(_n + depth + 1.5) * _mittag_x)
+        else:
+            __mittag = mittag_leffler(_mittag_x, a=beta, b=1) ** -(_n + depth + 1.5)
+
+        return __pre * __der * __c * __mittag
+
+    _sum = np.longdouble(0)
+    for n in range(0, n_max):
+        _sum += _cal_summand(n)
+
+    return _pre * _sum
+
+
+def first_pass_time_final_eq_vec(x0: np.ndarray | float, t: np.ndarray | float,
+                                 x_a: np.ndarray | float, x_b: np.ndarray | float,
+                                 n_max: np.ndarray | int,
+                                 cyl_dn_a: np.ndarray | float,
+                                 kb_t: np.ndarray | float,
+                                 ks: np.ndarray | float,
+                                 beta: np.ndarray | float,  # homogeneity coefficient beta -> [0, 1]
+                                 friction_coeff_beta: np.ndarray | float,
+                                 depth: np.ndarray | float,
+                                 bias: np.ndarray | float,
+                                 x_offset: np.ndarray | float = 0,
+                                 x_scale: np.ndarray | float = 1,
+                                 phi_offset: np.ndarray | float = 0,
+                                 phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(first_pass_time_final_eq, otypes=[np.longdouble])
+
+    return _vec(x0=x0, t=t,
+                x_a=x_a, x_b=x_b,
+                n_max=n_max, cyl_dn_a=cyl_dn_a,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
+                depth=depth, bias=bias,
+                x_offset=x_offset, x_scale=x_scale,
+                phi_offset=phi_offset, phi_scale=phi_scale)
+
+
 # The integrand of Splitting probability from final equation
 # This must be integrated over x in a running-manner to get final Splitting Probability
 def __sp_final_eq_integrand(x0: float,
@@ -586,48 +701,56 @@ def __sp_final_eq_integrand(x0: float,
                             cyl_dn_a: float,
                             kb_t: float,
                             ks: float,
-                            friction_coeff: float,
+                            beta: float,  # homogeneity coefficient beta -> [0, 1]
+                            friction_coeff_beta: float,
                             depth: float,
                             bias: float,
                             x_offset: float = 0,
                             x_scale: float = 1,
                             phi_offset: float = 0,
-                            phi_scale: float = 1) -> np.longdouble:
+                            phi_scale: float = 1,
+                            t_integration_start: float = 0,  # only when beta != 1
+                            t_integration_stop: float = 1e-4,  # only when beta != 1
+                            t_integration_samples: int = 100  # only when beta != 1
+                            ) -> np.longdouble:
     def _phi(_x: np.ndarray | float):
         return phi_scaled(_x, kb_t=kb_t, ks=ks,
                           depth=depth, bias=bias,
                           x_offset=x_offset, x_scale=x_scale,
                           phi_offset=phi_offset, phi_scale=phi_scale)
 
-    _d1 = kb_t / friction_coeff
-    _pre_c: float = _d1 * math.sqrt(ks / (kb_t * 2 * math.pi))
-    _phi_x = _phi(x0)
+    _d_beta = kb_t / friction_coeff_beta
+    _phi_x0 = _phi(x0)
 
-    _pre = _pre_c * _phi_x * _phi_x
+    _pre: float = _d_beta * math.sqrt(ks / (2 * math.pi * kb_t)) * (_phi_x0 ** 2)
 
-    def _cal_summand(_n: int, inv_fact: float) -> float:
+    def _cal_summand(_n: int) -> float:
         __dn_by_phi_func = dn_by_phi_func(n=_n, dn_a=cyl_dn_a,
                                           kb_t=kb_t, ks=ks,
                                           depth=depth, bias=bias,
                                           x_offset=x_offset, x_scale=x_scale,
                                           phi_offset=phi_offset, phi_scale=phi_scale)
 
+        __pre = 1 / C.factorial_cached(_n)
+
         __der = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
         __c = __dn_by_phi_func(x_b) - __dn_by_phi_func(x_a)
-        __integral = 1 / kn(n=_n, depth=depth, ks=ks, friction_coeff=friction_coeff)
+        if abs(beta - 1) <= 1e-4:  # tolerance
+            __integral = 1 / kn(n=_n, depth=depth, ks=ks, friction_coeff=friction_coeff_beta)
+        else:
+            _t = np.linspace(t_integration_start, t_integration_stop, num=t_integration_samples, endpoint=True)
+            _x = (ks / friction_coeff_beta) * np.power(_t, beta)
+            __y = mittag_leffler_vec(x=_x, a=beta, b=1)
+            _y = np.power(__y, -(_n + depth + 0.5))
 
-        return inv_fact * __der * __c * __integral
+            __integral = scipy.integrate.trapezoid(y=_y, x=_t)
+
+        return __der * __c * __integral
 
     _sum = np.longdouble(0)
 
-    # first term (n = 0)
-    _sum += _cal_summand(0, 1)
-
-    # Rest terms (n > 1)
-    inv_factorial: float = 1.0
-    for n in range(1, n_max):
-        inv_factorial /= n
-        _sum += _cal_summand(n, inv_factorial)
+    for n in range(0, n_max):
+        _sum += _cal_summand(n)
 
     return _pre * _sum
 
@@ -638,21 +761,30 @@ def _sp_final_eq_integrand_vec(x0: np.ndarray | float,
                                cyl_dn_a: np.ndarray | float,
                                kb_t: np.ndarray | float,
                                ks: np.ndarray | float,
-                               friction_coeff: np.ndarray | float,
+                               beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                               friction_coeff_beta: np.ndarray | float,
                                depth: np.ndarray | float,
                                bias: np.ndarray | float,
                                x_offset: np.ndarray | float = 0,
                                x_scale: np.ndarray | float = 1,
                                phi_offset: np.ndarray | float = 0,
-                               phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+                               phi_scale: np.ndarray | float = 1,
+                               t_integration_start: float = 0,  # only when beta != 1
+                               t_integration_stop: float = 1e-4,  # only when beta != 1
+                               t_integration_samples: int = 100  # only when beta != 1
+                               ) -> np.ndarray | np.longdouble:
     _vec = np.vectorize(__sp_final_eq_integrand, otypes=[np.longdouble])
     return _vec(x0=x0,
                 x_a=x_a, x_b=x_b,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
-                kb_t=kb_t, ks=ks, friction_coeff=friction_coeff,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
                 depth=depth, bias=bias,
                 x_offset=x_offset, x_scale=x_scale,
-                phi_offset=phi_offset, phi_scale=phi_scale)
+                phi_offset=phi_offset, phi_scale=phi_scale,
+                t_integration_start=t_integration_start,
+                t_integration_stop=t_integration_stop,
+                t_integration_samples=t_integration_samples)
 
 
 def sp_final_eq(x_a: float, x_b: float,
@@ -665,13 +797,18 @@ def sp_final_eq(x_a: float, x_b: float,
                 cyl_dn_a: float,
                 kb_t: float,
                 ks: float,
-                friction_coeff: float,
+                beta: np.ndarray | float,  # homogeneity coefficient beta [0, 1]
+                friction_coeff_beta: float,
                 depth: float,
                 bias: float,
                 x_offset: float = 0,
                 x_scale: float = 1,
                 phi_offset: float = 0,
-                phi_scale: float = 1) -> pd.DataFrame:
+                phi_scale: float = 1,
+                t_integration_start: float = 0,  # only when beta != 1
+                t_integration_stop: float = 1e-4,  # only when beta != 1
+                t_integration_samples: int = 100  # only when beta != 1
+                ) -> pd.DataFrame:
     """
     Calculates the Splitting probability between x_a and x_b.
     Uses the final "exact" equation, hence cheap and accurate.
@@ -696,10 +833,12 @@ def sp_final_eq(x_a: float, x_b: float,
     sp_integrand = mp_execute(_sp_final_eq_integrand_vec, input_arr=x, process_count=process_count,
                               args=(x_a, x_b,
                                     n_max, cyl_dn_a,
-                                    kb_t, ks, friction_coeff,
+                                    kb_t, ks,
+                                    beta, friction_coeff_beta,
                                     depth, bias,
                                     x_offset, x_scale,
-                                    phi_offset, phi_scale))
+                                    phi_offset, phi_scale,
+                                    t_integration_start, t_integration_stop, t_integration_samples))
 
     return _handle_sp_integrand(x=x,
                                 sp_integrand=sp_integrand,
@@ -723,13 +862,12 @@ def _sp_app_integrand_vec(x: np.ndarray | float,
                           x_scale: float = 1,
                           phi_offset: float = 0,
                           phi_scale: float = 1):
-    beta = 1 / kb_t
     pmf_arr = double_well_pmf_scaled(x=x,
                                      kb_t=kb_t, ks=ks,
                                      depth=depth, bias=bias,
                                      x_offset=x_offset, x_scale=x_scale,
                                      phi_offset=phi_offset, phi_scale=phi_scale)
-    return np.exp(beta * pmf_arr)
+    return np.exp(pmf_arr / kb_t)
 
 
 def sp_apparent(x_a: float, x_b: float,
@@ -800,4 +938,4 @@ def test_mittag_leffler():
 
 
 if __name__ == '__main__':
-    test()
+    test_mittag_leffler()

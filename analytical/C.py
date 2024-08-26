@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import time
+from functools import lru_cache
 from typing import Sequence, Literal
 
 import numpy as np
@@ -111,6 +112,11 @@ def read_csv(path_or_buf, sep: str = r"\s+",
 
 
 # Common Utilities ----------------------------------------------------------
+@lru_cache(maxsize=None)
+def factorial_cached(n):
+    return n * factorial_cached(n - 1) if n > 1 else 1
+
+
 def minimize_func(func, x_start: float, x_stop: float, ret_min_value: bool = False):
     """
     Minimizes the given function within (x_start, x_stop)

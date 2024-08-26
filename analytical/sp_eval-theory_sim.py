@@ -1,11 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-
-import C
-import double_well_pmf
-import double_well_pmf_fit
-import sp_impl
 from C import *
 from sp_eval import SpEval
 
@@ -40,10 +32,10 @@ USAGE: search for "TODO" and set the required params and file_names
 #           transition path x: x_a1 = 29.1, x_b1 = 35.8
 
 pmf_fit_params_file = "data_sim/pmf_fit/sp_traj-2.2.params.txt"  # TODO: set PMF fit-params
-x_a = 24  # TODO: LEFT Boundary (Å)
-x_b = 40  # TODO: RIGHT Boundary (Å)
+x_a = 26.65  # TODO: LEFT Boundary (Å)
+x_b = 38.41  # TODO: RIGHT Boundary (Å)
 
-x_0 = 10  # TODO: INITIAL Position (Å)
+x_0 = 26.65  # TODO: INITIAL Position (Å)
 t_0 = 0  # Initial time
 time_instant = 1  # time instant to calculate first-principle quantities
 
@@ -51,7 +43,9 @@ kb = BOLTZMANN_CONST_KCAL_PER_MOL_K  # Boltzmann constant (kcal/mol/K) = 8.314 /
 temp = 300  # Temperature (K)
 kb_t = kb * temp  # (kcal/mol)
 ks = 10  # Force constant of optical-trap (kcal/mol/Å**2)
-friction_coefficient = 1e-7  # friction coefficient (eta_1) (in kcal.sec/mol/Å**2). Optimal range (0.5 - 2.38) x 10-7
+
+beta = 1  # Homogeneity coefficient, in range [0, 1] where 1 is fully homogenous (diffusive) media
+friction_coefficient_beta = 1e-7  # friction coeff (eta_beta) (unit: (s^beta) . kcal/mol/Å**2). In range (0.5 - 2.38) x 10-7
 
 n_max = 10
 cyl_dn_a = 10  # "a" param of cylindrical function
@@ -62,7 +56,6 @@ time_integration_start = t_0
 time_integration_stop = 1e-4
 time_integration_samples = 200
 
-
 if __name__ == '__main__':
 
     ## Creating SpEval Instance  ------------------------------------------------------------
@@ -70,7 +63,8 @@ if __name__ == '__main__':
                              x_0=x_0, t_0=t_0,
                              time_instant=time_instant,
                              n_max=n_max, cyl_dn_a=cyl_dn_a,
-                             kb_t=kb_t, ks=ks, friction_coefficient=friction_coefficient,
+                             kb_t=kb_t, ks=ks,
+                             beta=beta, friction_coefficient_beta=friction_coefficient_beta,
                              x_integration_samples_first_princ=x_integration_samples_first_princ,
                              x_integration_samples_final_eq=x_integration_samples_final_eq,
                              time_integration_start=time_integration_start,
@@ -94,13 +88,17 @@ if __name__ == '__main__':
     #
     # sp_eval.cal_fpt(out_data_file="results-theory_sim/sp_first_princ/fpt_vs_t.csv",
     #                 out_fig_file="results-theory_sim/sp_first_princ/fpt_vs_t.pdf")
-    #
-    # sp_eval.cal_fpt_vs_t(t=np.linspace(2.85e-8, 300e-6, num=1000, endpoint=True),
-    #                      out_data_file="results-theory_sim/sp_first_princ/sp_first_princ-fit-2.2.fpt_vs_t.csv",
-    #                      out_fig_file=None)
 
-    # 3.92e-3, 3.93e-3, 3.95e-3, 5e-3
-    # 2.28e-3, 2.3e-3, 2.34e-3, 5e-3
+    # TODO: try to calculate First-Passage-Time for simulation as well
+    sp_eval.cal_fpt_vs_t(t=np.linspace(2.8e-8, 2.5e-7, num=1000, endpoint=True),
+                         use_final_eq=True,
+                         out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.csv",
+                         out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.pdf")
+
+    # sp_eval.cal_fpt_vs_t(t=np.linspace(5e-6, 40e-6, num=1000, endpoint=True),
+    #                      use_final_eq=True,
+    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.csv",
+    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.pdf")
 
     # sp_eval.cal_cond_prob_multi_time(time_instants=np.array([3.92e-3, 3.93e-3, 3.95e-3, 5e-3]),
     #                                  x_sample_count=100,

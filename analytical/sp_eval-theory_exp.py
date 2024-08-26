@@ -34,9 +34,10 @@ kb_t = kb * temp  # (kcal/mol)
 # ks = 1 / KCAL_PER_MOL_A2_TO_pN_PER_nM  # Force constant of optical-trap (kcal/mol/Å**2)
 ks = 10  # Force constant of optical-trap (kcal/mol/Å**2)
 
+beta = 1  # Homogeneity coefficient, in range [0, 1] where 1 is fully homogenous (diffusive) media
 # [with KbT = 4.1 pN nm] => 41 will give D1 = 0.1 nm^2/us  |  8.2 will give D1 = 0.5 nm^2/us
-friction_coefficient = (41 / KCAL_PER_MOL_A2_TO_pN_PER_nM) * 1e-6  # (in kcal.sec/mol/Å**2).
-# friction_coefficient = (41 / KCAL_PER_MOL_A2_TO_pN_PER_nM) * 1e-6  # (in kcal.sec/mol/Å**2).
+friction_coefficient_beta = (41 / KCAL_PER_MOL_A2_TO_pN_PER_nM) * 1e-6  # friction coeff (eta_beta) (unit: (s^beta) . kcal/mol/Å**2).
+# friction_coefficient = (41 / KCAL_PER_MOL_A2_TO_pN_PER_nM) * 1e-6
 
 n_max = 10
 cyl_dn_a = 10  # "a" param of cylindrical function
@@ -54,7 +55,8 @@ if __name__ == '__main__':
                      x_0=x_0, t_0=t_0,
                      time_instant=time_instant,
                      n_max=n_max, cyl_dn_a=cyl_dn_a,
-                     kb_t=kb_t, ks=ks, friction_coefficient=friction_coefficient,
+                     kb_t=kb_t, ks=ks,
+                     beta=beta, friction_coefficient_beta=friction_coefficient_beta,
                      x_integration_samples_first_princ=x_integration_samples_first_princ,
                      x_integration_samples_final_eq=x_integration_samples_sp_final_eq,
                      time_integration_start=time_integration_start,
