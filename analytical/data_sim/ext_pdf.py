@@ -29,11 +29,11 @@ frame_index_end = 32e6 / frame_step_fs  # Exclusive [-1 for no end bound]
 # Histogram parameters
 ext_start: float = 0.0
 ext_end: float = 50.0
-ext_bin_count: int = 1000
+ext_bin_count: int = 2000
 _ext_bin_size = (ext_end - ext_start) / ext_bin_count
 
 # Moving average
-rolling_window_bins: int = 5  # [int] Moving Average window size (in no of bins). Set to 0 to disable
+rolling_window_bins: int = 50  # [int] Moving Average window size (in no of bins). Set to 0 to disable
 rolling_window_size: float = -1  # [float] [Only used if rolling_window_bins is not set]. Moving Average window size (in Angstroms). Set to 0 to disable.
 
 

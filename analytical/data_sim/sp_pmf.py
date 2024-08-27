@@ -26,15 +26,15 @@ CAL_TO_JOULE = 4.184  # 1 cal = 4.184 J
 K_b = 8.314 / (CAL_TO_JOULE * 1000)  # ideal gas constant in kcal/(mol K)
 
 ## INPUT -----------------------
-extension_pdf_file = "ext_pdf.csv"  # Input Extension vs Probability file i.e Extension Probability
+extension_pdf_file = "ext_pdf-avg50.csv"  # Input Extension vs Probability file i.e Extension Probability
 ext_col_name = "EXT"
-ext_pdf_col_name = "PDF"
+ext_pdf_col_name = "PDF_AVG"
 T = 300  # Constant Temp (K)
 
-# First barrier (F -> I) => x_a = 14, x_b = 28
-# Second barrier (I -> U) => x_a = 26, x_b = 41
-x_a = 14  # TODO: LEFT Absorbing Boundary - Folded state extension (in Å)
-x_b = 28  # TODO: RIGHT Absorbing Boundary - Unfolded state extension (in Å)
+# First barrier (F -> I) => x_a = 16.0, x_b = 30.5
+# Second barrier (I -> U) => x_a = 27.0, x_b = 40.5
+x_a = 16.0  # TODO: LEFT Absorbing Boundary - Folded state extension (in Å)
+x_b = 30.5  # TODO: RIGHT Absorbing Boundary - Unfolded state extension (in Å)
 
 # Whether to negate apparent PMF for Sp(x) calculation
 # -> True (default) : Sp(x) will give inflection at the potential energy barrier(s)

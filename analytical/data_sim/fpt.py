@@ -22,16 +22,16 @@ frame_index_end: int = int(32e-9 / (frame_step_fs * 1e-15))  # Exclusive [-1 for
 fpt_frame_step: int = int(0.5e-9 / (frame_step_fs * 1e-15))  # Frames between successive FPT calculation
 
 # Histogram parameters
-x_a: float = 26.65  # TODO: LEFT Boundary (Å)
-x_b: float = 38.41  # TODO: right Boundary (Å)
+x_a: float = 15  # TODO: LEFT Boundary (Å)
+x_b: float = 24.23  # TODO: right Boundary (Å)
 ext_bin_count: int = 1000
 _ext_bin_size: float = (x_b - x_a) / ext_bin_count
 
 normalize_pdf = False
 
 ## Output --------------------------------------------------------------
-output_fpt_data_file = "fpt-2.csv"
-output_fpt_fig_file = "fpt-2.pdf"
+output_fpt_data_file = "fpt-1.csv"
+output_fpt_fig_file = "fpt-1.pdf"
 
 ## ----------------------------------------------------------------------------
 
@@ -108,4 +108,3 @@ plt.title(f"using Simulation Trajectory ($x_a$: {x_a:.2f}, $x_b$: {x_b:.2f})")
 if output_fpt_fig_file:
     plt.savefig(output_fpt_fig_file)
 plt.show()
-

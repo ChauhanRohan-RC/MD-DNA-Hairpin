@@ -35,7 +35,7 @@ pmf_fit_params_file = "data_sim/pmf_fit/sp_traj-2.2.params.txt"  # TODO: set PMF
 x_a = 26.65  # TODO: LEFT Boundary (Å)
 x_b = 38.41  # TODO: RIGHT Boundary (Å)
 
-x_0 = 26.65  # TODO: INITIAL Position (Å)
+x_0 = x_a  # TODO: INITIAL Position (Å)
 t_0 = 0  # Initial time
 time_instant = 1  # time instant to calculate first-principle quantities
 
@@ -90,10 +90,10 @@ if __name__ == '__main__':
     #                 out_fig_file="results-theory_sim/sp_first_princ/fpt_vs_t.pdf")
 
     # TODO: try to calculate First-Passage-Time for simulation as well
-    sp_eval.cal_fpt_vs_t(t=np.linspace(2.8e-8, 2.5e-7, num=1000, endpoint=True),
-                         use_final_eq=True,
-                         out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.csv",
-                         out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.pdf")
+    # sp_eval.cal_fpt_vs_t(t=np.linspace(2.8e-8, 2.5e-7, num=1000, endpoint=True),
+    #                      use_final_eq=True,
+    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.csv",
+    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.pdf")
 
     # sp_eval.cal_fpt_vs_t(t=np.linspace(5e-6, 40e-6, num=1000, endpoint=True),
     #                      use_final_eq=True,
@@ -154,4 +154,6 @@ if __name__ == '__main__':
                                    interp_sim_traj_x_extra_right=0.8,
                                    plot_pmf_im=True,
                                    pmf_im_x_extra_left=1.3,
-                                   pmf_im_x_extra_right=1.4)
+                                   pmf_im_x_extra_right=1.4,
+                                   align_pmf_im=False,
+                                   align_pmf_im_offset=-0.05)

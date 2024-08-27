@@ -652,7 +652,7 @@ class SpEval:
                 if pmf_im_diff is not None:
                     pmf_im += (pmf_im_diff + align_pmf_im_offset)
                     print(
-                        f"SP_EVAL: Aligning Imposed-PMF => Actual Offset: {pmf_im_diff} | Explicit: {align_pmf_im_offset} | Total: {pmf_im_diff + align_pmf_im_offset}")
+                        f"SP_EVAL: Aligning Imposed-PMF with PMF_RE-theory => Actual Offset: {pmf_im_diff} | Explicit: {align_pmf_im_offset} | Total: {pmf_im_diff + align_pmf_im_offset}")
 
             # Save newly created Imposed-PMF samples to a file
             if out_file_name_prefix:
@@ -727,8 +727,10 @@ class SpEval:
 
             if align_sim_app_pmf:
                 # Align the minima of simulated_apparent_pmf_re with the minima of theory_pmf_re
-                x_ref, pmf_ref = (x_sim_traj_interp, pmf_re_sim_traj_interp) if pmf_re_sim_traj_interp is not None \
-                    else (x_theory, pmf_re_theory)
+                # x_ref, pmf_ref = (x_sim_traj_interp, pmf_re_sim_traj_interp) if pmf_re_sim_traj_interp is not None \
+                #     else (x_theory, pmf_re_theory)
+
+                x_ref, pmf_ref = x_theory, pmf_re_theory
 
                 # Taking only the left-half minima of reference
                 if (align_sim_app_pmf_left_half_only or align_sim_app_pmf_right_half_only) and len(x_ref) > 4:
