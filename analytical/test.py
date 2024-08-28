@@ -15,6 +15,8 @@ print(df[df["PMF_RE"] == df["PMF_RE"].min()])
 # barrier_energy: 2.943994
 
 ## PMF_RE Sim App-PMF
-# maxima: 18.725, -1.861791         19.6234
+# maxima: 18.725, -1.861791
 # minima: 15.0, -3.604494
 # barrier_energy: 1.742703
+
+# -------------------- sp_app-fit-2.2 --------------------

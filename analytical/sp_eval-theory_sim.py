@@ -86,19 +86,6 @@ if __name__ == '__main__':
     # sp_eval.cal_cond_prob_integral_x_vs_t(out_data_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_t.csv",
     #                                       out_fig_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_t.pdf")
     #
-    # sp_eval.cal_fpt(out_data_file="results-theory_sim/sp_first_princ/fpt_vs_t.csv",
-    #                 out_fig_file="results-theory_sim/sp_first_princ/fpt_vs_t.pdf")
-
-    # TODO: try to calculate First-Passage-Time for simulation as well
-    # sp_eval.cal_fpt_vs_t(t=np.linspace(2.8e-8, 2.5e-7, num=1000, endpoint=True),
-    #                      use_final_eq=True,
-    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.csv",
-    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.pdf")
-
-    # sp_eval.cal_fpt_vs_t(t=np.linspace(5e-6, 40e-6, num=1000, endpoint=True),
-    #                      use_final_eq=True,
-    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.csv",
-    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.pdf")
 
     # sp_eval.cal_cond_prob_multi_time(time_instants=np.array([3.92e-3, 3.93e-3, 3.95e-3, 5e-3]),
     #                                  x_sample_count=100,
@@ -110,6 +97,17 @@ if __name__ == '__main__':
     #                                  plot_title="Probability Density",
     #                                  plot_subtitle="I -> U unfolding of 1D16/T4 DNA Hairpin",
     #                                  out_file_name_prefix="results-theory_sim/sp_first_princ/sp_first_princ-fit-2.2.cond_prob_vs_t.unfold")
+
+    # sp_eval.cal_fpt_vs_t(t=np.linspace(2.8e-8, 2.5e-7, num=1000, endpoint=True),
+    #                      use_final_eq=True,
+    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.csv",
+    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-2.2.fpt_vs_t.pdf")
+
+    # sp_eval.cal_fpt_vs_t(t=np.linspace(5e-6, 40e-6, num=1000, endpoint=True),
+    #                      use_final_eq=True,
+    #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.csv",
+    #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.pdf")
+
 
     if 0:
         sp_eval.sp_first_principle(out_data_file="results-theory_sim/sp_first_princ/sp_first_princ-fit-1.csv",
