@@ -1,0 +1,9 @@
+# --------------- PMF Analysis ----------------
+# INPUT pmf_file: "results-theory_sim/sp_app/sp_app-fit-1.2.sim_app_pmf_aligned.csv" | x_col_name: EXT | pmf_col_name: PMF_RE
+# -> Barrier Energy (from minima LEFT): 1.7427028257485233 
+# -> Barrier Energy (from minima RIGHT): 1.338044548250441 
+# ----------------------------------------------
+Location	EXT	PMF_RE
+minima_left	15.0	-3.604493927549021
+minima_right	25.975	-3.1998356500509386
+maxima	18.725	-1.8617911018004976

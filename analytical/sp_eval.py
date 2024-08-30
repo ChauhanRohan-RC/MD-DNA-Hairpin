@@ -233,6 +233,19 @@ class SpEval:
                                                     x_offset=self.x_offset, x_scale=self.x_scale,
                                                     phi_offset=self.phi_offset, phi_scale=self.phi_scale)
 
+    def mean_first_pass_time_final_eq(self, x0: np.ndarray | float | None):
+        if x0 is None:
+            x0 = self.x_0
+
+        return sp_impl.mean_first_pass_time_final_eq_vec(x0=x0,
+                                                         x_a=self.x_a, x_b=self.x_b,
+                                                         n_max=self.n_max, cyl_dn_a=self.cyl_dn_a,
+                                                         kb_t=self.kb_t, ks=self.ks,
+                                                         beta=self.beta, friction_coeff_beta=self.friction_coeff_beta,
+                                                         depth=self.depth, bias=self.bias,
+                                                         x_offset=self.x_offset, x_scale=self.x_scale,
+                                                         phi_offset=self.phi_offset, phi_scale=self.phi_scale)
+
     # ==========================================================================================
     # ----------------------------  SPLITTING PROBABILITY Wrappers  ---------------------------
     # ==========================================================================================
@@ -490,10 +503,11 @@ class SpEval:
         if out_data_file:
             df = pd.DataFrame({
                 COL_NAME_TIME: t,
-                COL_NAME_FIRST_PASS_TIME: fpt
+                COL_NAME_FIRST_PASS_TIME_DISTRIBUTION: fpt
             })
 
-            to_csv(df, out_data_file)
+            to_csv(df, out_data_file,
+                   comments=["---------------- First Passage Time Distribution (FPTD) -------------"])
 
         plt.plot(t, fpt, label="FPT vs t")
         plt.xlabel("Time (s)")

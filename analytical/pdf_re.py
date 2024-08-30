@@ -1,6 +1,9 @@
 from C import *
 import sp_impl
 import matplotlib.pyplot as plt
+"""
+Script to reconstruct Probability Density Function (PDF) from PMF
+"""
 
 kb = BOLTZMANN_CONST_KCAL_PER_MOL_K  # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10-3)
 temp = 300  # Temperature (K)

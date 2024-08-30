@@ -319,7 +319,7 @@ def cond_prob(x: float, t: float, x0: float, t0: float,
         __der_x = derivative(__dn_by_phi_func, x0=x, dx=1e-4)
         __der_x0 = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
 
-        if abs(beta - 1) <= 1e-4:       # tolerance
+        if abs(beta - 1) <= 1e-4:  # tolerance
             __mittag = math.exp(-(_n + depth + 0.5) * (ks / friction_coeff_beta) * t)
         else:
             __mittag = mittag_leffler((ks / friction_coeff_beta) * (t ** beta), a=beta, b=1) ** -(_n + depth + 0.5)
@@ -653,7 +653,7 @@ def first_pass_time_final_eq(x0: float, t: float,
         __der = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
         __c = __dn_by_phi_func(x_b) - __dn_by_phi_func(x_a)
 
-        if abs(beta - 1) <= 1e-4:       # tolerance
+        if abs(beta - 1) <= 1e-4:  # tolerance
             __mittag = math.exp(-(_n + depth + 1.5) * _mittag_x)
         else:
             __mittag = mittag_leffler(_mittag_x, a=beta, b=1) ** -(_n + depth + 1.5)
@@ -684,6 +684,74 @@ def first_pass_time_final_eq_vec(x0: np.ndarray | float, t: np.ndarray | float,
     _vec = np.vectorize(first_pass_time_final_eq, otypes=[np.longdouble])
 
     return _vec(x0=x0, t=t,
+                x_a=x_a, x_b=x_b,
+                n_max=n_max, cyl_dn_a=cyl_dn_a,
+                kb_t=kb_t, ks=ks,
+                beta=beta, friction_coeff_beta=friction_coeff_beta,
+                depth=depth, bias=bias,
+                x_offset=x_offset, x_scale=x_scale,
+                phi_offset=phi_offset, phi_scale=phi_scale)
+
+
+def mean_first_pass_time_final_eq(x0: float,
+                                  x_a: float, x_b: float,
+                                  n_max: int,
+                                  cyl_dn_a: float,
+                                  kb_t: float,
+                                  ks: float,
+                                  beta: float,  # homogeneity coefficient beta -> [0, 1]
+                                  friction_coeff_beta: float,
+                                  depth: float,
+                                  bias: float,
+                                  x_offset: float = 0,
+                                  x_scale: float = 1,
+                                  phi_offset: float = 0,
+                                  phi_scale: float = 1) -> np.longdouble:
+    def _phi(_x: np.ndarray | float):
+        return phi_scaled(_x, kb_t=kb_t, ks=ks,
+                          depth=depth, bias=bias,
+                          x_offset=x_offset, x_scale=x_scale,
+                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+    _phi_x0 = _phi(x0)
+    _pre = math.sqrt(kb_t / ks) * (_phi_x0 ** 2) * ((ks / friction_coeff_beta) ** beta) * scipy.special.gamma(1 + beta)
+
+    def _cal_summand(_n: int) -> float:
+        __dn_by_phi_func = dn_by_phi_func(n=_n, dn_a=cyl_dn_a,
+                                          kb_t=kb_t, ks=ks,
+                                          depth=depth, bias=bias,
+                                          x_offset=x_offset, x_scale=x_scale,
+                                          phi_offset=phi_offset, phi_scale=phi_scale)
+
+        __pre = cn_sq(n=_n + 1, depth=depth) / (n + depth + 0.5)
+        __der = derivative(__dn_by_phi_func, x0=x0, dx=1e-4)
+        __c = __dn_by_phi_func(x_b) - __dn_by_phi_func(x_a)
+        return __pre * __der * __c
+
+    _sum = np.longdouble(0)
+    for n in range(0, n_max):
+        _sum += _cal_summand(n)
+
+    return _pre * _sum
+
+
+def mean_first_pass_time_final_eq_vec(x0: np.ndarray | float,
+                                      x_a: np.ndarray | float, x_b: np.ndarray | float,
+                                      n_max: np.ndarray | int,
+                                      cyl_dn_a: np.ndarray | float,
+                                      kb_t: np.ndarray | float,
+                                      ks: np.ndarray | float,
+                                      beta: np.ndarray | float,  # homogeneity coefficient beta -> [0, 1]
+                                      friction_coeff_beta: np.ndarray | float,
+                                      depth: np.ndarray | float,
+                                      bias: np.ndarray | float,
+                                      x_offset: np.ndarray | float = 0,
+                                      x_scale: np.ndarray | float = 1,
+                                      phi_offset: np.ndarray | float = 0,
+                                      phi_scale: np.ndarray | float = 1) -> np.ndarray | np.longdouble:
+    _vec = np.vectorize(mean_first_pass_time_final_eq, otypes=[np.longdouble])
+
+    return _vec(x0=x0,
                 x_a=x_a, x_b=x_b,
                 n_max=n_max, cyl_dn_a=cyl_dn_a,
                 kb_t=kb_t, ks=ks,

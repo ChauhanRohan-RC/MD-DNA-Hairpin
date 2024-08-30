@@ -1,8 +1,10 @@
 import math
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
+import C
 from C import *
 
 """
@@ -49,7 +51,8 @@ def parabolic_pmf(x: np.ndarray,
         with open(out_file_name, "w") as f:
             f.write(f"{COMMENT_TOKEN} ------------- PARABOLIC PMF ----------------\n")
             f.write(f"{COMMENT_TOKEN} INPUT Spring constant (Ks): {ks}\n")
-            f.write(f"{COMMENT_TOKEN} Parameters => x_offset: {x_offset} | x_scale: {x_scale} | pmf_offset: {pmf_offset} | pmf_scale: {pmf_scale}\n")
+            f.write(
+                f"{COMMENT_TOKEN} Parameters => x_offset: {x_offset} | x_scale: {x_scale} | pmf_offset: {pmf_offset} | pmf_scale: {pmf_scale}\n")
             to_csv(df, path_or_buf=f, mode="a")
 
     return pmf
@@ -231,6 +234,68 @@ def minimize_double_well_pmf(x_start: float, x_stop: float,
     return minimize_func(_func, x_start=x_start, x_stop=x_stop, ret_min_value=ret_min_value)
 
 
+# Utility Functions -----------------------------------------------------
+
+def get_pmf_min_max(x: np.ndarray, pmf: np.ndarray):
+    max_i = np.argmax(pmf)
+
+    len_half = len(pmf) // 2
+    min_i_left = np.argmin(pmf[:len_half])
+    min_i_right = len_half + np.argmin(pmf[len_half:])
+
+    return {
+        "minima_left": (x[min_i_left], pmf[min_i_left]),
+        "minima_right": (x[min_i_right], pmf[min_i_right]),
+        "maxima": (x[max_i], pmf[max_i])
+    }
+
+
+def analyze_pmf_min_max(pmf_df_file_name: str,
+                        x_col_name: str = COL_NAME_X,
+                        pmf_col_name: str = COL_NAME_PMF,
+                        out_file_name: str = None) -> pd.DataFrame:
+    pmf_df = read_csv(pmf_df_file_name)
+
+    x = pmf_df[x_col_name].values
+    pmf = pmf_df[pmf_col_name].values
+
+    info = get_pmf_min_max(x=x, pmf=pmf)
+    keys = info.keys()
+
+    df: pd.DataFrame = pd.DataFrame(columns=("Location", x_col_name, pmf_col_name))
+
+    for i, key in enumerate(keys):
+        df.loc[i] = [key, *info[key]]
+
+    max_pmf = info["maxima"][1]
+    min_pmf_left = info["minima_left"][1]
+    min_pmf_right = info["minima_right"][1]
+
+    if out_file_name:
+        to_csv(df, out_file_name, comments=[
+            "--------------- PMF Analysis ----------------",
+            f"INPUT pmf_file: \"{pmf_df_file_name}\" | x_col_name: {x_col_name} | pmf_col_name: {pmf_col_name}",
+            f"-> Barrier Energy (from minima LEFT): {max_pmf - min_pmf_left} ",
+            f"-> Barrier Energy (from minima RIGHT): {max_pmf - min_pmf_right} ",
+            "----------------------------------------------"
+        ])
+
+    return df
+
+
+def main_analyze_pmf():
+    pmf_df_file_name = "results-theory_sim/sp_app/sp_app-fit-2.2.sim_app_pmf_aligned.csv"
+    x_col_name = COL_NAME_EXTENSION
+    pmf_col_name = COL_NAME_PMF_RECONSTRUCTED
+
+    out_file_name = "results-theory_sim/sp_app/sim_app_pmf_aligned2.2.pmf_re_min_max.txt"
+
+    analyze_pmf_min_max(pmf_df_file_name,
+                        x_col_name=x_col_name,
+                        pmf_col_name=pmf_col_name,
+                        out_file_name=out_file_name)
+
+
 def main():
     Kb = 1.9872036e-3  # Boltzmann constant (kcal/mol/K) = 8.314 / (4.18 x 10-3)
 
@@ -260,4 +325,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    main_analyze_pmf()

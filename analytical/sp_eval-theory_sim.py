@@ -31,9 +31,9 @@ USAGE: search for "TODO" and set the required params and file_names
 #           maxima x,y: (32.48336853841946, -0.880441507265813)
 #           transition path x: x_a1 = 29.1, x_b1 = 35.8
 
-pmf_fit_params_file = "data_sim/pmf_fit/sp_traj-2.2.params.txt"  # TODO: set PMF fit-params
-x_a = 26.65  # TODO: LEFT Boundary (Å)
-x_b = 38.41  # TODO: RIGHT Boundary (Å)
+pmf_fit_params_file = "data_sim/pmf_fit/sp_traj-1.2.params.txt"  # TODO: set PMF fit-params
+x_a = 15.0  # TODO: LEFT Boundary (Å)
+x_b = 24.23  # TODO: RIGHT Boundary (Å)
 
 x_0 = x_a  # TODO: INITIAL Position (Å)
 t_0 = 0  # Initial time
@@ -73,6 +73,8 @@ if __name__ == '__main__':
 
     if pmf_fit_params_file:
         sp_eval.load_pmf_fit_params(fit_params_file=pmf_fit_params_file)
+
+    # print(sp_eval.mean_first_pass_time_final_eq(None))
 
     ## General Tests -----------------------------------------------------------------
     # print(sp_eval.get_pmf_minima(0.5, 1))

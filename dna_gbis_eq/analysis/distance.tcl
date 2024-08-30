@@ -14,8 +14,8 @@
 # ======================= INPUT ===========================
 set psf_file		"../../common/dna.psf";		# input strcuture file (.psf)
 # LIST of trajectory (.dcd) or single frame (.pdb, .coor) files separated by space
-#set frame_files	{ "../dna_gbis_eq2.dcd" };		
-set frame_files	{ "../dna_gbis_eq3.restart.coor" };
+#set frame_files	{ "dna_gbis_pcf1.dcd" "dna_gbis_pcf2.dcd" };		
+set frame_files	{ "../dna_gbis_eq.dcd" };
 
 set selection_atom1	"resid 1 and name C5'";		# selection for first atom: SMD
 set selection_atom2	"resid 16 and name C3'";	# selection for second atom: FIXED
@@ -109,11 +109,18 @@ proc log { msg } {
 	log2file $msg;					# to output file
 }
 
+# Selecting Atoms
+set atom1 [atomselect $mol_id $selection_atom1];
+set atom2 [atomselect $mol_id $selection_atom2];
+
+set atom1_str "[$atom1 get resname][$atom1 get resid]:[$atom1 get name]"
+set atom2_str "[$atom2 get resname][$atom2 get resid]:[$atom2 get name]"
+
 puts "--------------------------"
 log2file "${comment_token}================  DISTANCE B/W 2 ATOMS  ================="
 log "${comment_token}LOG: INPUT Structure File: \"${psf_file}\" | Frame File(s): \[${frame_files}\]"
-log "${comment_token}LOG: ATOM1 SELECTION: \"${selection_atom1}\""
-log "${comment_token}LOG: ATOM2 SELECTION: \"${selection_atom2}\""
+log "${comment_token}LOG: ATOM1 SELECTION: \"${selection_atom1}\"  =>  ${atom1_str}"
+log "${comment_token}LOG: ATOM2 SELECTION: \"${selection_atom2}\"  =>  ${atom2_str}"
 
 if {[info exists dir_vec] && [llength $dir_vec] == 3 } {
 	set dir_unit_vec [vecnorm $dir_vec]
@@ -128,10 +135,6 @@ log "${comment_token}--------------------------"
 log "${comment_token}LOG: Total Frames: ${nf}";
 log "${comment_token}LOG: START Frame Index: ${start_frame_index} | END Frame Index: ${end_frame_index} | Frames for Calculation: [expr ${end_frame_index} - ${start_frame_index} + 1]"
 log "${comment_token}--------------------------"
-
-# Selecting Atoms
-set atom1 [atomselect $mol_id $selection_atom1];
-set atom2 [atomselect $mol_id $selection_atom2];
 
 # Header for output file
 if {$comment_header == 0} {

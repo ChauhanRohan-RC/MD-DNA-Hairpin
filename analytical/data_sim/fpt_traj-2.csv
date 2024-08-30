@@ -1,11 +1,11 @@
-# -------------------- First Passage Time (FPT) Distribution from Simulation Trajectory -------------------
+# -------------------- First Passage Time Distribution (FPTD) from Simulation Trajectory -------------------
 # INPUT frame_vs_ext file: "dist_vs_frame.dat"
 # INPUT Frame Range: [31550, 160000] | Frame Count: 128450 | Time b/w Frames: 200 fs
 # INPUT x_a: 28.2 | x_b: 37.7 | x_bins: 100 | x_bin_size: 0.09500000000000003 | Normalize PDF: True
 # -----------------------------------------------
 # OUTPUT -> FPT Frame Step: 2500 | FPT samples: 51 | Normalize FPT: True
 # -----------------------------------------------
-FRAME	TIME	PDF_AREA	FPT
+FRAME	TIME	PDF_AREA	FPTD
 34050	6.81e-09	0.59159987989781281925	0.07051244856249159265
 36550	7.310000000000001e-09	0.5090000094502038497	0.0016128259494190193024
 39050	7.81e-09	0.63459991847189067826	0.0047236212155803230078

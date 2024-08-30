@@ -136,11 +136,11 @@ res_df["FRAME"] = frame_instants_arr
 if time_arr is not None:
     res_df["TIME"] = time_arr
 res_df["PDF_AREA"] = area_arr
-res_df["FPT"] = fpt_arr
+res_df["FPTD"] = fpt_arr
 
 if output_fpt_data_file:
     comments = [
-        "-------------------- First Passage Time (FPT) Distribution from Simulation Trajectory -------------------",
+        "-------------------- First Passage Time Distribution (FPTD) from Simulation Trajectory -------------------",
         f"INPUT frame_vs_ext file: \"{frame_vs_ext_file}\"",
         f"INPUT Frame Range: [{frame__start}, {frame__end}] | Frame Count: {frame_count} | Time b/w Frames: {f'{frame_step_fs} fs' if frame_step_fs > 0 else '<Not-Set>'}",
         f"INPUT x_a: {x_a} | x_b: {x_b} | x_bins: {ext_bin_count} | x_bin_size: {_ext_bin_size} | Normalize PDF: {normalize_pdf}",

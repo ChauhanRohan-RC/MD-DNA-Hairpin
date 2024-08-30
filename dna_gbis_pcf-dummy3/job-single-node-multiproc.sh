@@ -8,7 +8,7 @@
 #	4. submit with "sbatch job-script.sh"  or  "sbatch -w cn03 job-script.sh" 
 #
 # Job name
-#SBATCH --job-name=dna-d1
+#SBATCH --job-name=dna-d2
 #
 # Account
 ##SBATCH --account=parbati
@@ -43,7 +43,7 @@
 ##PBS -V
 
 ## Working Dir: Mostly $SLURM_SUBMIT_DIR
-WORK_DIR=/scratch/home/parbati/rohan/Projects/MD/dna-hairpin/dna_gbis_pcf-dummy
+WORK_DIR=/scratch/home/parbati/rohan/Projects/MD/dna-hairpin/dna_gbis_pcf-dummy2
 cd $WORK_DIR
 
 ### -------- Creating Nodelist file for NAMD ---------

@@ -1,22 +1,15 @@
+import os.path
+
 from C import *
+from double_well_pmf import analyze_pmf_min_max
 
-df = read_csv("results-theory_sim/sp_app/sp_app-fit-1.2.sim_app_pmf_aligned.csv")
-print(df[df["PMF_RE"] == df["PMF_RE"].min()])
+pmf_df_file_name = "results-theory_sim/sp_app/sp_app-fit-2.2.sim_app_pmf_aligned.csv"
+x_col_name = COL_NAME_EXTENSION
+pmf_col_name = COL_NAME_PMF_RECONSTRUCTED
 
-# -------------------- sp_app-fit-1.2--------------------
-## PMF_RE Theory
-# maxima: 20.019416, -0.71875
-# minima: 15.0, -3.604513
-# barrier_energy: 2.885763
+out_file_name = "results-theory_sim/sp_app/sim_app_pmf_aligned2.2.pmf_re_min_max.txt"
 
-## PMF_RE Sim-Traj
-# maxima: 19.729275, -0.723606
-# minima: 15.133236, -3.6676
-# barrier_energy: 2.943994
-
-## PMF_RE Sim App-PMF
-# maxima: 18.725, -1.861791
-# minima: 15.0, -3.604494
-# barrier_energy: 1.742703
-
-# -------------------- sp_app-fit-2.2 --------------------
+analyze_pmf_min_max(pmf_df_file_name,
+                    x_col_name=x_col_name,
+                    pmf_col_name=pmf_col_name,
+                    out_file_name=out_file_name)
