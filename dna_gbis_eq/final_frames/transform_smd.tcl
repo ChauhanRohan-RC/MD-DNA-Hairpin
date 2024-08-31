@@ -13,13 +13,13 @@
 
 # ======================= INPUT ===========================
 set psf_file		"../../common/dna.psf";							# TODO: input strcuture file (.psf)
-set in_frame_file	"dna_gbis_eq3.restart.coor";		# TODO: input frame file (.pdb, .coor)
+set in_frame_file	"dna_gbis_eq4.restart.coor";		# TODO: input frame file (.pdb, .coor)
 
 set selection_atom_fixed	"resid 16 and name C3'";	# TODO: selection for FIXED ATOM -> to be brought to origin
 set selection_atom_smd		"resid 1 and name C5'";		# TODO: selection for SMD ATOM -> to be brought to X-axis
 
 # ======================= OUTPUT ===========================
-set out_pdb_file 		"dna_gbis_eq3.pdb";				# TODO: output .pdb file
+set out_pdb_file 		"dna_gbis_eq4.pdb";				# TODO: output .pdb file
 
 # =========================  MAIN  ==================================
 # loading INPUT .psf and .dcd files

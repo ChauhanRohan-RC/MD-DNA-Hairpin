@@ -8,16 +8,19 @@
 #	4. submit with "sbatch job_script.sh"  or  "sbatch -w cn[01-03] job_script.sh" 
 #
 # Job name
-#SBATCH --job-name=dna-d1
+#SBATCH --job-name=dna-t1
 #
 # Account
 ##SBATCH --account=parbatib
 #
 # Partition
-#SBATCH --partition=hm
+#SBATCH --partition=standard
 #
 # Number of nodes
-#SBATCH --nodes=2
+#SBATCH --nodes=4
+#
+## Number of gpu's to use --gres=gpu:<num_gpu_to_use>
+##SBATCH --gres=gpu:1
 #
 # Tasks (processes) per node (based on number of cores per node = 48 in this HPC)
 #SBATCH --ntasks-per-node=48
@@ -26,7 +29,7 @@
 #SBATCH --cpus-per-task=1
 #
 # Wall clock Time Limit (days-hr:min:secs)
-#SBATCH --time=02-00:00:00
+#SBATCH --time=03:00:00
 #
 # Standard Output and Error
 #SBATCH --output=output.log
@@ -43,7 +46,7 @@
 ##PBS -V
 
 ## Working Dir: Mostly $SLURM_SUBMIT_DIR
-WORK_DIR=/scratch/parbatib/rohan/Projects/MD/dna-hairpin/dna_gbis_pcf-dummy
+WORK_DIR=$SLURM_SUBMIT_DIR
 cd $WORK_DIR
 
 ### -------- Creating Nodelist file for NAMD ---------
