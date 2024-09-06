@@ -1,3 +1,4 @@
+import math
 import multiprocessing as mp
 import time
 from functools import lru_cache
@@ -10,6 +11,9 @@ import scipy
 COMMENT_TOKEN = "#"
 
 # Constants ------------------------
+SQRT_TWO_PI = math.sqrt(2 * math.pi)
+INV_SQRT_TWO_PI = 1 / SQRT_TWO_PI
+
 AVOGADRO_NUMBER = 6.02214076e23
 
 CAL_TO_JOULE = 4.184  # 1 cal = 4.184 J
@@ -50,22 +54,15 @@ CPU_COUNT = mp.cpu_count()
 DEFAULT_PROCESS_COUNT = CPU_COUNT - 1
 
 
-def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tuple = None) -> np.ndarray:
+def mp_execute(worker_func, input_arr: np.ndarray, args: tuple = None,
+               process_count: int = DEFAULT_PROCESS_COUNT,
+               verbose: bool = True) -> np.ndarray:
     sample_count = len(input_arr)
 
     q, r = divmod(sample_count, process_count)
     chunk_size = q if r == 0 else q + 1
 
-    print("---------------------------------------------")
-    print(f"# Computing in Multiprocess Mode"
-          f"\n -> Target Function: {worker_func.__name__}"
-          f"\n -> Total CPU(s): {CPU_COUNT} | Process Count: {process_count}"
-          f"\n -> Total Samples: {sample_count} | Samples per Process: {chunk_size}")
-
     has_args = isinstance(args, tuple)
-
-    time_start = time.time()
-
     chunks = []
     for i in range(0, sample_count, chunk_size):
         chunk = input_arr[i: min(i + chunk_size, sample_count)]
@@ -74,16 +71,25 @@ def mp_execute(worker_func, input_arr: np.ndarray, process_count: int, args: tup
         else:
             chunks.append(chunk)
 
+    if verbose:
+        print("---------------------------------------------")
+        print(f"# Computing in Multiprocess Mode"
+              f"\n -> Target Function: {worker_func.__name__}"
+              f"\n -> Total CPU(s): {CPU_COUNT} | Process Count: {process_count}"
+              f"\n -> Total Samples: {sample_count} | Samples per Process: {chunk_size}")
+
+        time_start = time.time()
+
     with mp.Pool(processes=process_count) as pool:
         if has_args:
             res = pool.starmap(worker_func, chunks)
         else:
             res = pool.map(worker_func, chunks)
 
-    time_end = time.time()
-
-    print(f"Time taken: {time_end - time_start:.2f} s")
-    print("---------------------------------------------")
+    if verbose:
+        time_end = time.time()
+        print(f"Time taken: {time_end - time_start:.2f} s")
+        print("---------------------------------------------")
     return np.concatenate(res)
 
 

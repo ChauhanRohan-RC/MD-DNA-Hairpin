@@ -1,0 +1,7 @@
+1. Imposed or Hidden Molecular Free-Energy Profile
+    -> for theory:
+        PMF theoretically defined by our model
+    -> for simulation and experiments:
+        PMF implied by extension distribution after deconvolution of instrumental compliance
+        implemented in script: test-deconvolve/deconv.py
+        source: Deconvolution procedure in Supplementary Material of Woodside-2007-Direct Measurement of the Full, Sequence-Dependent Folding Landscape of a Nucleic Acid

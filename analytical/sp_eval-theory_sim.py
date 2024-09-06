@@ -32,8 +32,8 @@ USAGE: search for "TODO" and set the required params and file_names
 #           transition path x: x_a1 = 29.1, x_b1 = 35.8
 
 pmf_fit_params_file = "data_sim/pmf_fit/sp_traj-1.2.params.txt"  # TODO: set PMF fit-params
-x_a = 15.0  # TODO: LEFT Boundary (Å)
-x_b = 24.23  # TODO: RIGHT Boundary (Å)
+x_a = 14.988497234334494  # TODO: LEFT Boundary (Å)
+x_b = 24.25070294049196 # TODO: RIGHT Boundary (Å)
 
 x_0 = x_a  # TODO: INITIAL Position (Å)
 t_0 = 0  # Initial time
@@ -82,13 +82,18 @@ if __name__ == '__main__':
     # sp_eval.plot_pmf_imposed(None, None)
 
     ## ================================ FIRST PRINCIPLES (APPROX) =====================================
-    # sp_eval.cal_cond_prob_integral_x_vs_x0(out_data_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_x0.csv",
-    #                                        out_fig_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_x0.pdf")
-    #
+    # sp_eval.cal_cond_prob("results-theory_sim/sp_first_princ/sp_first_princ-fit-1.2.cond_prob_1s.csv",
+    #                       out_fig_file=None,
+    #                       t=1, normalize=True,
+    #                       x_sample_count=int((x_b - x_a) / 0.025) + 1)
+
+    # sp_eval.cal_cond_prob_integral_x_vs_x0(x0=np.linspace(x_a, x_b, 50, endpoint=True),
+    #                                        out_data_file="test-cond_prob_int_x_vs_x0.csv",
+    #                                        out_fig_file="test-cond_prob_int_x_vs_x0.svg")
+
     # sp_eval.cal_cond_prob_integral_x_vs_t(out_data_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_t.csv",
     #                                       out_fig_file="results-theory_sim/sp_first_princ/cond_prob_int_x_vs_t.pdf")
     #
-
     # sp_eval.cal_cond_prob_multi_time(time_instants=np.array([3.92e-3, 3.93e-3, 3.95e-3, 5e-3]),
     #                                  x_sample_count=100,
     #                                  normalize=True,
@@ -109,7 +114,6 @@ if __name__ == '__main__':
     #                      use_final_eq=True,
     #                      out_data_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.csv",
     #                      out_fig_file="results-theory_sim/sp_final_eq/sp_final_eq-fit-1.2.fpt_vs_t.pdf")
-
 
     if 0:
         sp_eval.sp_first_principle(out_data_file="results-theory_sim/sp_first_princ/sp_first_princ-fit-1.csv",

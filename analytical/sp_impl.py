@@ -188,6 +188,25 @@ def boltzmann_factor(pmf: np.ndarray | float, kb_t: float, normalize: bool = Tru
     return pdf_arr
 
 
+def pmf_from_pdf(pdf: np.ndarray, x: np.ndarray | None,
+                 out_file_name: str | None,
+                 kb_t: float,
+                 out_x_col_name: str = COL_NAME_X,
+                 out_pmf_col_name: str = C.COL_NAME_PMF) -> np.ndarray:
+    """
+    Boltzmann Inversion: PMF from equilibrium distribution
+    """
+    pmf_arr = -kb_t * np.log(pdf)
+
+    if out_file_name:
+        _df = pd.DataFrame()
+        if x is not None:
+            _df[out_x_col_name] = x
+        _df[out_pmf_col_name] = pmf_arr
+        to_csv(_df, out_file_name)
+
+    return pmf_arr
+
 def pdf_from_pmf(pmf: np.ndarray, x: np.ndarray | None,
                  out_file_name: str | None,
                  kb_t: float,
@@ -369,12 +388,12 @@ def cond_prob_vec(x: np.ndarray | float, t: np.ndarray | float,
                  phi_offset=phi_offset, phi_scale=phi_scale)
 
     if normalize and isinstance(x, np.ndarray):
-        # y_arr -= np.min(y_arr)
+        y_arr -= np.min(y_arr)
         tot = scipy.integrate.trapezoid(y=y_arr, x=x)
         if tot > 0:
             y_arr /= tot
 
-        y_arr -= np.min(y_arr)
+        # y_arr -= np.min(y_arr)
 
     return y_arr
 
@@ -951,7 +970,7 @@ def sp_apparent(x_a: float, x_b: float,
                 x_offset: float = 0,
                 x_scale: float = 1,
                 phi_offset: float = 0,
-                phi_scale: float = 1):
+                phi_scale: float = 1) -> pd.DataFrame:
     """
     Calculates the Splitting probability between x_a and x_b using Apparent-PMF implied by
     extension distribution.
@@ -988,6 +1007,28 @@ def sp_apparent(x_a: float, x_b: float,
                                 return_sp_integrand=return_sp_integrand,
                                 reconstruct_pmf=reconstruct_pmf,
                                 out_data_file=out_data_file)
+
+
+def sp_apparent2(x: np.ndarray, pmf: np.ndarray,
+                return_sp_integrand: bool,
+                reconstruct_pmf: bool,
+                out_data_file: str | None,
+                kb_t: float) -> pd.DataFrame:
+    """
+    Splitting Probability directly from Apparent PMF samples.
+    """
+
+    sp_integrand = np.exp(pmf / kb_t)
+
+    return _handle_sp_integrand(x=x,
+                                sp_integrand=sp_integrand,
+                                kb_t=kb_t,
+                                do_integrate=RUNNING_INTEGRAL_SP_APP_PMF,
+                                return_sp_integrand=return_sp_integrand,
+                                reconstruct_pmf=reconstruct_pmf,
+                                out_data_file=out_data_file)
+
+
 
 
 def test():

@@ -32,6 +32,8 @@ ext_end: float = 50.0
 ext_bin_count: int = 2000
 _ext_bin_size = (ext_end - ext_start) / ext_bin_count
 
+ext_val_precision = 4   # decimal precision of extension values
+
 # Moving average
 rolling_window_bins: int = 50  # [int] Moving Average window size (in no of bins). Set to 0 to disable
 rolling_window_size: float = -1  # [float] [Only used if rolling_window_bins is not set]. Moving Average window size (in Angstroms). Set to 0 to disable.
@@ -72,7 +74,8 @@ ext_hist, ext_bin_edges = np.histogram(a=frame_ext_df["EXT"], bins=ext_bin_count
 ext_pdf_df = pd.DataFrame()
 
 ext_col_label = (COMMENT_TOKEN if comment_output_header else "") + "EXT"
-ext_pdf_df[ext_col_label] = ext_bin_edges[0:-1]
+ext_pdf_df[ext_col_label] = np.round(ext_bin_edges[0:-1], ext_val_precision)
+
 ext_pdf_df["PDF"] = ext_hist
 
 meta_info_str = (

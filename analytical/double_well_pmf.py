@@ -236,18 +236,14 @@ def minimize_double_well_pmf(x_start: float, x_stop: float,
 
 # Utility Functions -----------------------------------------------------
 
-def get_pmf_min_max(x: np.ndarray, pmf: np.ndarray):
+def get_pmf_min_max_indices(pmf: np.ndarray):
     max_i = np.argmax(pmf)
 
     len_half = len(pmf) // 2
     min_i_left = np.argmin(pmf[:len_half])
     min_i_right = len_half + np.argmin(pmf[len_half:])
 
-    return {
-        "minima_left": (x[min_i_left], pmf[min_i_left]),
-        "minima_right": (x[min_i_right], pmf[min_i_right]),
-        "maxima": (x[max_i], pmf[max_i])
-    }
+    return min_i_left, min_i_right, max_i
 
 
 def analyze_pmf_min_max(pmf_df_file_name: str,
@@ -259,24 +255,19 @@ def analyze_pmf_min_max(pmf_df_file_name: str,
     x = pmf_df[x_col_name].values
     pmf = pmf_df[pmf_col_name].values
 
-    info = get_pmf_min_max(x=x, pmf=pmf)
-    keys = info.keys()
+    min_left_i, min_right_i, max_i = get_pmf_min_max_indices(pmf=pmf)
 
     df: pd.DataFrame = pd.DataFrame(columns=("Location", x_col_name, pmf_col_name))
-
-    for i, key in enumerate(keys):
-        df.loc[i] = [key, *info[key]]
-
-    max_pmf = info["maxima"][1]
-    min_pmf_left = info["minima_left"][1]
-    min_pmf_right = info["minima_right"][1]
+    df.loc[0] = ['minima_left', x[min_left_i], pmf[min_left_i]]
+    df.loc[1] = ['minima_right', x[min_right_i], pmf[min_right_i]]
+    df.loc[2] = ['maxima', x[max_i], pmf[max_i]]
 
     if out_file_name:
         to_csv(df, out_file_name, comments=[
             "--------------- PMF Analysis ----------------",
             f"INPUT pmf_file: \"{pmf_df_file_name}\" | x_col_name: {x_col_name} | pmf_col_name: {pmf_col_name}",
-            f"-> Barrier Energy (from minima LEFT): {max_pmf - min_pmf_left} ",
-            f"-> Barrier Energy (from minima RIGHT): {max_pmf - min_pmf_right} ",
+            f"-> Barrier Energy (from minima LEFT): {pmf[max_i] - pmf[min_left_i]} ",
+            f"-> Barrier Energy (from minima RIGHT): {pmf[max_i] - pmf[min_right_i]} ",
             "----------------------------------------------"
         ])
 
@@ -325,5 +316,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    main_analyze_pmf()
+    main()
+    # main_analyze_pmf()

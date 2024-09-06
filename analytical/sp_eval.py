@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.figure import figaspect
 
 import sp_impl
@@ -263,7 +264,7 @@ class SpEval:
             x_b = self.x_b
 
         if x_integration_samples is None or x_integration_samples < 1:
-            x_integration_samples = self.x_integration_samples_final_eq
+            x_integration_samples = self.x_integration_samples_first_princ
 
         return sp_impl.sp_first_principle(x_a=x_a, x_b=x_b, x_integration_samples=x_integration_samples,
                                           t0=self.t_0, t_start=self.t_integration_start, t_stop=self.t_integration_stop,
@@ -351,7 +352,7 @@ class SpEval:
 
         if out_data_file:
             df = pd.DataFrame({
-                COL_NAME_X: x,
+                COL_NAME_X: np.round(x, 5),
                 COL_NAME_CONDITIONAL_PROBABILITY: y
             })
 
@@ -442,8 +443,8 @@ class SpEval:
     def _cond_prob_integral_x_vs_x0_worker(self, x0: np.ndarray | float):
         return self.cond_prob_integral_x(x0=x0, t0=self.t_0, t=self.time_instant)
 
-    def cal_cond_prob_integral_x_vs_x0(self, out_data_file: str | None, out_fig_file: str | None):
-        x0 = np.linspace(self.x_a, self.x_b, 100, endpoint=True)
+    def cal_cond_prob_integral_x_vs_x0(self, x0: np.ndarray, out_data_file: str | None, out_fig_file: str | None):
+        # x0 = np.linspace(self.x_a, self.x_b, 100, endpoint=True)
         y = mp_execute(self._cond_prob_integral_x_vs_x0_worker, x0, DEFAULT_PROCESS_COUNT)
 
         if out_data_file:
@@ -509,7 +510,7 @@ class SpEval:
             to_csv(df, out_data_file,
                    comments=["---------------- First Passage Time Distribution (FPTD) -------------"])
 
-        plt.plot(t, fpt, label="FPT vs t")
+        plt.plot(t, fpt, label=f"x0: {self.x_0}")
         plt.xlabel("Time (s)")
         plt.ylabel("First Passage Time FPT(t)")
 
@@ -829,3 +830,46 @@ class SpEval:
             print(f"SP_EVAL: SP and Reconstructed-PMF plot saved to file \"{out_fig_file}\"")
 
         plt.show()
+
+
+# ------------------ STATIC Utility Function ------------------------
+
+def _cal_mean_fpt(df: pd.DataFrame,
+                  time_col_name: str = COL_NAME_TIME,
+                  fpt_col_name: str = COL_NAME_FIRST_PASS_TIME_DISTRIBUTION):
+    return np.average(df[time_col_name].values, weights=df[fpt_col_name].values)
+
+
+def cal_mean_first_pass_time(theory_df_file: str,
+                             sim_df_file: str | None,
+                             out_file_name: str | None = "mean_fpt.txt",
+                             time_col_name: str = COL_NAME_TIME,
+                             fpt_col_name: str = COL_NAME_FIRST_PASS_TIME_DISTRIBUTION):
+    df_theory = read_csv(theory_df_file)
+    mfpt_theory = _cal_mean_fpt(df_theory,
+                                time_col_name=time_col_name,
+                                fpt_col_name=fpt_col_name)
+
+    if sim_df_file:
+        df_sim = read_csv(sim_df_file)
+        mfpt_sim = _cal_mean_fpt(df_sim,
+                                 time_col_name=time_col_name,
+                                 fpt_col_name=fpt_col_name)
+    else:
+        df_sim = None
+        mfpt_sim = None
+
+    lines = [
+        f"{COMMENT_TOKEN}{COMMENT_TOKEN} Mean First Passage Time --------------",
+        f"{COMMENT_TOKEN} -> Theory: {mfpt_theory} s",
+        f"{COMMENT_TOKEN} -> Simulation: {f'{mfpt_sim} s' if mfpt_sim is not None else "<No-DATA>"}",
+        f"{COMMENT_TOKEN} -----------------------------------------"
+    ]
+
+    if out_file_name:
+        with open(out_file_name, "w") as f:
+            for line in lines:
+                f.write(line + "\n")
+
+    for line in lines:
+        print(line)

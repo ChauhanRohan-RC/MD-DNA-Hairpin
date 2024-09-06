@@ -1,7 +1,7 @@
 # Grace project file
 #
 @version 50125
-@page size 792, 612
+@page size 638, 612
 @page scroll 5%
 @page inout 5%
 @link page off
@@ -63,7 +63,7 @@
 @timestamp rot 0
 @timestamp font 0
 @timestamp char size 1.000000
-@timestamp def "Fri Aug 23 12:11:52 2024"
+@timestamp def "Wed Sep  4 11:46:27 2024"
 @r0 off
 @link r0 to g0
 @r0 type above
@@ -113,12 +113,12 @@
 @    world 12, 0, 27, 0.5
 @    stack world 0, 0, 0, 0
 @    znorm 1
-@    view 0.150000, 0.150000, 1.150000, 0.850000
-@    title "Probability Density: F -> I Barrier"
+@    view 0.090000, 0.090000, 1.006944, 0.875000
+@    title "Probability Density: F <-> I Barrier"
 @    title font 0
 @    title size 1.500000
 @    title color 1
-@    subtitle "F -> I unfolding transition of 1D16/T4 DNA Hairpin"
+@    subtitle "F <-> I transition of 1D16/T4 DNA Hairpin"
 @    subtitle font 0
 @    subtitle size 1.000000
 @    subtitle color 1
@@ -133,7 +133,7 @@
 @    xaxis  bar color 1
 @    xaxis  bar linestyle 1
 @    xaxis  bar linewidth 1.0
-@    xaxis  label "X (Å)"
+@    xaxis  label "x (Å)"
 @    xaxis  label layout para
 @    xaxis  label place auto
 @    xaxis  label char size 1.000000
@@ -142,7 +142,7 @@
 @    xaxis  label place normal
 @    xaxis  tick on
 @    xaxis  tick major 2
-@    xaxis  tick minor ticks 1
+@    xaxis  tick minor ticks 3
 @    xaxis  tick default 6
 @    xaxis  tick place rounded true
 @    xaxis  tick in
@@ -232,7 +232,7 @@
 @    altyaxis  off
 @    legend on
 @    legend loctype view
-@    legend 0.8, 0.8
+@    legend 0.644444444, 0.8
 @    legend box color 1
 @    legend box pattern 1
 @    legend box linewidth 1.0

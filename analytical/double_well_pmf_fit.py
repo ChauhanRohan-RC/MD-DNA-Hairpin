@@ -217,14 +217,22 @@ def load_fit_params(fit_param_file) -> np.ndarray:
     return _param_df[PMF_FIT_COL_NAME_PARAM_VALUE].values
 
 
+def create_double_well_phi_func(fit_params, kb_t: float, ks: float):
+    return lambda x: phi_scaled(x, kb_t, ks, *fit_params)
+
+
 def load_double_well_phi_func(fit_param_file, kb_t: float, ks: float):
     _fit_params = load_fit_params(fit_param_file)
-    return lambda x: phi_scaled(x, kb_t, ks, *_fit_params)
+    return create_double_well_phi_func(fit_params=_fit_params, kb_t=kb_t, ks=ks)
+
+
+def create_double_well_pmf_func(fit_params, kb_t: float, ks: float):
+    return lambda x: double_well_pmf_scaled(x, kb_t, ks, *fit_params)
 
 
 def load_double_well_pmf_func(fit_param_file, kb_t: float, ks: float):
     _fit_params = load_fit_params(fit_param_file)
-    return lambda x: double_well_pmf_scaled(x, kb_t, ks, *_fit_params)
+    return create_double_well_pmf_func(fit_params=_fit_params, kb_t=kb_t, ks=ks)
 
 
 def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float,
