@@ -495,11 +495,16 @@ class SpEval:
         return self.first_pass_time_final_eq(x0=self.x_0, t=t)
 
     # First passage time
-    def cal_fpt_vs_t(self, t: np.ndarray, use_final_eq: bool, out_data_file: str | None, out_fig_file: str | None):
+    def cal_fpt_vs_t(self, t: np.ndarray, use_final_eq: bool, normalize: bool = True, out_data_file: str | None = None, out_fig_file: str | None = None):
         # NOTE: Time range for first_pass_time distribution is 40.825e-9 - 5e-6
 
         worker = self._fpt_vs_t_final_eq_worker if use_final_eq else self._fpt_vs_t_first_princ_worker
         fpt = mp_execute(worker, t, DEFAULT_PROCESS_COUNT)
+        if normalize:
+            fpt -= np.min(fpt)
+            norm = np.linalg.norm(fpt)
+            if norm > 0:
+                fpt /= norm
 
         if out_data_file:
             df = pd.DataFrame({
