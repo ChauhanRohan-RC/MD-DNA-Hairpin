@@ -5,3 +5,8 @@
         PMF implied by extension distribution after deconvolution of instrumental compliance
         implemented in script: test-deconvolve/deconv.py
         source: Deconvolution procedure in Supplementary Material of Woodside-2007-Direct Measurement of the Full, Sequence-Dependent Folding Landscape of a Nucleic Acid
+
+2. Splitting Probability (or committor) is ALWAYS 0.5 at the barrier top, for BOTH SYMMETRIC AND ASYMMETRIC double well pmf
+    -> This is TRUE FOR OUR MODEL of double-well pmf,
+       For a certain depth, as the asymmetry (bias) is increased, the barrier-top shifts towards the shallower well, retaining half the area on either side of the barrier top
+    -> CAUTION: for some other models, asymmetric pmf may lead to SP < 0.5 or Sp > 0.5 at the barrier

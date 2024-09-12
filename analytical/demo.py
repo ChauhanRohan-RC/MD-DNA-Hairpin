@@ -7,15 +7,16 @@ from double_well_pmf import get_pmf_min_max_indices
 from double_well_pmf_fit import load_fit_params, create_double_well_pmf_func
 
 """
-Script to analyze the Effect of Ks (linker stiffness) on Theoretical Reconstructed PMF
+Script to create demo pmf and Sp samples for figures
 """
 
-tag = "ASYMMETRIC_PMF-BIAS_LOW"  # TODO: tag to define state
-pmf_fit_params_file = "results-theory/ks_effect/asymm-bias_low/asymm-bias_low.params.txt"  # TODO: set PMF fit-params
-out_file_name_prefix = "results-theory/ks_effect/asymm-bias_low/asymm-bias_low"  # TODO: Output file name prefix
+tag = "DEMO-SYMMETRIC"  # TODO: tag to define state
+pmf_fit_params_file = "results-theory/demo/demo-symm.params.txt"  # TODO: set PMF fit-params
+out_file_name_prefix = "results-theory/demo/demo-symm"  # TODO: Output file name prefix
 
-pmf_x_search_start, pmf_x_search_stop = -6, 6
-align_pmf_minimas = True
+pmf_x_search_start, pmf_x_search_stop = -60, 60
+pmf_x_samples = 1000
+align_pmf_minimas = False
 
 # x_a = 20  # LEFT Boundary (Å)
 # x_b = 32  # RIGHT Boundary (Å)
@@ -30,7 +31,7 @@ kb_t = kb * temp  # (kcal/mol)
 
 ## TODO: Stiffness of optical trap, in units of KbT/[x]^2
 # -> FIRST value is for IMPOSED-PMF
-ks_arr = np.array([10.3, 4, 6, 8, 10]) * kb_t
+ks_arr = np.array([5, 5]) * kb_t
 
 
 # beta = 1  # Homogeneity coefficient, in range [0, 1] where 1 is fully homogenous (diffusive) media
@@ -46,85 +47,25 @@ ks_arr = np.array([10.3, 4, 6, 8, 10]) * kb_t
 # time_integration_samples = 200
 
 
-def get_min_left_right(pmf_func, x_start: float, x_stop: float):
+def get_min_max(pmf_func, x_start: float, x_stop: float):
+    _range = x_stop - x_start
+
     min_left = minimize_func(pmf_func,
                              x_start=x_start,
-                             x_stop=x_start + ((x_stop - x_start) / 2),
+                             x_stop=x_start + (_range / 2),
                              ret_min_value=False)
 
     min_right = minimize_func(pmf_func,
-                              x_start=x_start + ((x_stop - x_start) / 2),
+                              x_start=x_start + (_range / 2),
                               x_stop=x_stop,
                               ret_min_value=False)
 
-    return min_left, min_right
+    maxima = maximize_func(pmf_func,
+                           x_start=min_left,
+                           x_stop=min_right,
+                           ret_max_value=False)
 
-
-# ---------------------------
-# def plot_sp(plot_sp: bool, align_mode: str):  # align_mode: ('barrier', 'minimas')
-#     sp_evals = []
-#     for ks in ks_arr:
-#         min_left, min_right = get_min_left_right(ks, x_start, x_stop)
-#
-#         sp_ev: SpEval = SpEval(x_a=min_left, x_b=min_right,
-#                                x_0=min_left, t_0=t_0,
-#                                time_instant=time_instant,
-#                                n_max=n_max, cyl_dn_a=cyl_dn_a,
-#                                kb_t=kb_t, ks=ks,
-#                                beta=beta, friction_coefficient_beta=friction_coefficient_beta,
-#                                x_integration_samples_first_princ=x_integration_samples_first_princ,
-#                                x_integration_samples_final_eq=x_integration_samples_final_eq,
-#                                time_integration_start=time_integration_start,
-#                                time_integration_stop=time_integration_stop,
-#                                time_integration_samples=time_integration_samples)
-#
-#         sp_ev.load_pmf_fit_params(fit_params_file=pmf_fit_params_file)
-#         sp_evals.append(sp_ev)
-#
-#     ref_x, ref_pmf = None, None
-#     ref_x_min1, ref_x_min2 = None, None
-#     sp_dfs = []
-#     for sp_ev in sp_evals:
-#         out_data_file = f"test_sp_ks-{sp_ev.ks}.csv"
-#         sp_df = sp_ev.sp_apparent(out_data_file=out_data_file, reconstruct_pmf=True)
-#         sp_dfs.append(sp_df)
-#
-#         if align_mode == 'barrier':
-#             # Aligning Barrier
-#             i_max = np.argmax(sp_df[COL_NAME_PMF_RECONSTRUCTED])
-#             max_x = sp_df[COL_NAME_X][i_max]
-#             max_pmf = sp_df[COL_NAME_PMF_RECONSTRUCTED][i_max]
-#             if ref_x is None:
-#                 ref_x = max_x
-#                 ref_pmf = max_pmf
-#             else:
-#                 sp_df[COL_NAME_X] += (ref_x - max_x)
-#                 sp_df[COL_NAME_PMF_RECONSTRUCTED] += (ref_pmf - max_pmf)
-#         elif align_mode == 'minimas':
-#             # Aligning MINIMA's
-#             x_col = sp_df[COL_NAME_X].values
-#             pmf_re_col = sp_df[COL_NAME_PMF_RECONSTRUCTED].values
-#             half_len = len(pmf_re_col) // 2
-#             i_min_left = np.argmin(pmf_re_col[:half_len])
-#             i_min_right = half_len + np.argmin(pmf_re_col[half_len:])
-#             x_min_left = x_col[i_min_left]
-#             x_min_right = x_col[i_min_right]
-#
-#             if ref_x_min1 is None:
-#                 ref_x_min1 = x_min_left
-#                 ref_x_min2 = x_min_right
-#                 scale = 1
-#             else:
-#                 scale = (ref_x_min2 - ref_x_min1) / (x_min_right - x_min_left)
-#             sp_df[COL_NAME_X] *= scale
-#             sp_df[COL_NAME_PMF_RECONSTRUCTED] = (pmf_re_col - np.min(pmf_re_col)) * scale
-#
-#         # Plotting
-#         plt.plot(sp_df[COL_NAME_X], sp_df[COL_NAME_SP if plot_sp else COL_NAME_PMF_RECONSTRUCTED],
-#                  label=f'{sp_ev.ks:g}')
-#
-#     plt.legend(loc='best')
-#     plt.show()
+    return min_left, min_right, maxima
 
 
 # PMF Plots --------------------
@@ -135,8 +76,8 @@ def gen_pmf(fit_params,
             x_search_stop: float,
             align_pmf_minimas: bool,
             x_samples=200,
-            x_extra_left: float = 0.1,
-            x_extra_right: float = 0.1):
+            x_extra_left: float = 5,
+            x_extra_right: float = 5):
     min_left_low, min_right_high = x_search_stop, x_search_start
     min_left_high, min_right_low = x_search_stop, x_search_start
 
@@ -146,10 +87,14 @@ def gen_pmf(fit_params,
         pmf_func = create_double_well_pmf_func(fit_params=fit_params, kb_t=kb_t, ks=ks)
         pmf_funcs.append(pmf_func)
 
-        _min_left, _min_right = get_min_left_right(pmf_func, x_search_start, x_search_stop)
+        _min_left, _min_right, _maxima = get_min_max(pmf_func, x_search_start, x_search_stop)
         mins_arr.append((_min_left, _min_right))
 
-        print(f"Minima for ks {ks:.4f} => LEFT: {_min_left:.4f}, RIGHT: {_min_right:.4f}")
+        print(f"\nPMF for ks {ks:.4f} -----------\n"
+              f" -> MINIMA LEFT: ({_min_left}, {pmf_func(_min_left)})\n"
+              f" -> MINIMA RIGHT: ({_min_right}, {pmf_func(_min_right)})\n"
+              f" -> MAXIMA: ({_maxima}, {pmf_func(_maxima)})\n")
+
         min_left_low, min_right_high = min(min_left_low, _min_left), max(min_right_high, _min_right)
         min_left_high, min_right_low = max(min_left_high, _min_left), min(min_right_low, _min_right)
 
@@ -174,7 +119,6 @@ def gen_pmf(fit_params,
     # tuple (x, [pmf_ks1, pmf_ks2...])
     return x, pmf_arr
 
-
 def cal_sp_pmf_re(fit_params,
                   kb_t: float,
                   ks_arr: np.ndarray,
@@ -193,24 +137,27 @@ def cal_sp_pmf_re(fit_params,
                          align_pmf_minimas=align_pmf_minimas)
 
     ## Plotting PMF ------------------------------
-    # for i, pmf in enumerate(pmf_arr):
-    #     if i == 0:  # Imposed PMF
-    #         plt.plot(x, pmf, label=f'Imposed (ks: {ks_arr[0]:.2f})', c='black')
-    #     else:
-    #         plt.plot(x, pmf, label=f'ks: {ks_arr[i]:.2f}')
-    #
-    # ref_x, ref_pmf = x, pmf_arr[0]
-    # min_val_left = np.min(ref_pmf[:len(ref_pmf) // 2])
-    # min_val_right = np.min(ref_pmf[len(ref_pmf) // 2:])
-    # print(f"Min VAL LEFT: {min_val_left}")
-    # print(f"Min VAL RIGHT: {min_val_right}")
-    #
-    # plt.plot(ref_x, np.full(len(ref_x), min_val_left), '--', c='k')
-    # plt.plot(ref_x, np.full(len(ref_x), min_val_right), '--', c='k')
-    #
+    for i, pmf in enumerate(pmf_arr):
+        if i == 0:  # Imposed PMF
+            plt.plot(x, pmf, label=f'Imposed (ks: {ks_arr[0]:.2f})', c='black')
+        else:
+            plt.plot(x, pmf, label=f'ks: {ks_arr[i]:.2f}')
+
+    ref_x, ref_pmf = x, pmf_arr[0]
+    min_val_left = np.min(ref_pmf[:len(ref_pmf) // 2])
+    min_val_right = np.min(ref_pmf[len(ref_pmf) // 2:])
+    print(f"Min VAL LEFT: {min_val_left}")
+    print(f"Min VAL RIGHT: {min_val_right}")
+
+    plt.plot(ref_x, np.full(len(ref_x), min_val_left), '--', c='k')
+    plt.plot(ref_x, np.full(len(ref_x), min_val_right), '--', c='k')
+
     # plt.legend(loc='best')
-    # plt.title("PMF")
-    # plt.show()
+    plt.title("PMF")
+    # plt.xlim(-25, 25)
+    # plt.ylim(-3, 0.4)
+    # plt.savefig("symm.svg")
+    plt.show()
     ## ------------------------------------
 
     ## Calculating SP from generated Samples
@@ -231,6 +178,10 @@ def cal_sp_pmf_re(fit_params,
     for i, pmf in enumerate(pmf_arr):
         min_left_i, min_right_i, max_i = get_pmf_min_max_indices(pmf)
 
+        print(
+            f"CALC-SP: PMF for ks {ks_arr[i]:.4f} => MINIMA LEFT: ({x[min_left_i]:.4f}, {pmf[min_left_i]:.4f}), MINIMA RIGHT: ({x[min_right_i]:.4f}, {pmf[min_right_i]:.4f}), MAXIMA: ({x[max_i]:.4f}, {pmf[max_i]:.4f})")
+
+
         sp_df = sp_impl.sp_apparent2(x=x[min_left_i:min_right_i + 1],
                                      pmf=pmf[min_left_i:min_right_i + 1],
                                      kb_t=kb_t,
@@ -238,21 +189,27 @@ def cal_sp_pmf_re(fit_params,
                                      reconstruct_pmf=True,
                                      out_data_file=None)
 
-        sp_df[COL_NAME_PMF_RECONSTRUCTED] -= sp_df[COL_NAME_PMF_RECONSTRUCTED].min()
+        # sp_df[COL_NAME_PMF_RECONSTRUCTED] -= sp_df[COL_NAME_PMF_RECONSTRUCTED].min()
         sp_dfs.append(sp_df)
+
+        sp_half_i = np.searchsorted(-sp_df[COL_NAME_SP].values, -0.5, side="right")
+        print(f"CALC-SP: SP for ks {ks_arr[i]:.4f} => Sp = 0.5 at ({sp_df[COL_NAME_X][sp_half_i]}, {sp_df[COL_NAME_PMF_RECONSTRUCTED][sp_half_i]})")
 
         common_comments = [
             f"{out_data_file_tag}",
             f"INPUT KbT: {kb_t}",
-            f"INPUT Ks: {ks_arr[i]}  ({ks_arr[i]/kb_t:.4f} KbT/[x]^2)",
+            f"INPUT Ks: {ks_arr[i]}  ({ks_arr[i] / kb_t:.4f} KbT/[x]^2)",
             f"INPUT fit-params => depth: {fit_params[0]}, bias: {fit_params[1]}, x_offset: {fit_params[2]}, x_scale: {fit_params[3]}, phi_offset: {fit_params[4]}, phi_scale: {fit_params[5]}",
             "-----------------------------------------------"
         ]
 
         series_label = f"ks: {ks_arr[i] / kb_t:g} KbT/[x]^2"
         if i == 0:  # Imposed (Hidden) PMF
-            pmf_im_df = pd.DataFrame({COL_NAME_X: sp_df[COL_NAME_X],
-                                      COL_NAME_PMF_IMPOSED: sp_df[COL_NAME_PMF_RECONSTRUCTED]})
+            # pmf_im_df = pd.DataFrame({COL_NAME_X: sp_df[COL_NAME_X],
+            #                           COL_NAME_PMF_IMPOSED: sp_df[COL_NAME_PMF_RECONSTRUCTED]})
+
+            pmf_im_df = pd.DataFrame({COL_NAME_X: x,
+                                      COL_NAME_PMF_IMPOSED: pmf})
 
             # Saving Imposed-PMF Dataframe
             comments = common_comments.copy()
@@ -276,7 +233,7 @@ def cal_sp_pmf_re(fit_params,
     # axis[0].legend(loc='best')
     axes[1].legend(loc='best')
 
-    plt.savefig(f"{out_file_name_prefix}.pdf")
+    plt.savefig(f"{out_file_name_prefix}.sp_pmf_re.svg")
     plt.show()
 
 
@@ -287,6 +244,7 @@ if __name__ == '__main__':
                   kb_t=kb_t, ks_arr=ks_arr,
                   pmf_x_search_start=pmf_x_search_start,
                   pmf_x_search_stop=pmf_x_search_stop,
+                  pmf_x_samples=pmf_x_samples,
                   align_pmf_minimas=align_pmf_minimas,
                   out_file_name_prefix=out_file_name_prefix,
                   out_data_file_tag=f"INPUT TAG: {tag} | param-file: \"{pmf_fit_params_file}\"")
