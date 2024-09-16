@@ -237,11 +237,10 @@ def minimize_double_well_pmf(x_start: float, x_stop: float,
 # Utility Functions -----------------------------------------------------
 
 def get_pmf_min_max_indices(pmf: np.ndarray):
-    max_i = np.argmax(pmf)
-
     len_half = len(pmf) // 2
     min_i_left = np.argmin(pmf[:len_half])
     min_i_right = len_half + np.argmin(pmf[len_half:])
+    max_i = min_i_left + 1 + np.argmax(pmf[min_i_left:min_i_right])
 
     return min_i_left, min_i_right, max_i
 
