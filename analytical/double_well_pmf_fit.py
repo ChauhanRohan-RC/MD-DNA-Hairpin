@@ -6,7 +6,7 @@ import scipy
 import C
 from C import to_csv, COMMENT_TOKEN, PMF_FIT_COL_NAME_PARAM, PMF_FIT_COL_NAME_PARAM_VALUE, \
     PMF_FIT_COL_NAME_PARAM_STD_DEV, COL_NAME_X, COL_NAME_PMF_IMPOSED, minimize_func, COL_NAME_PMF
-from double_well_pmf import double_well_pmf_scaled, phi_scaled
+from double_well_pmf import double_well_pmf_scaled, phi_scaled, get_pmf_func_min_max
 
 """
 Script to fit the double_well_pmf model to pmf samples
@@ -252,6 +252,67 @@ def samplify_double_well_pmf_fit(fit_param_file, kb_t: float, ks: float,
 
     plt.plot(x, y)
     plt.show()
+
+
+def gen_pmf(pmf_funcs: list,
+            x_search_start: float,
+            x_search_stop: float,
+            align_pmf_minimas: bool,
+            align_broadest: bool,
+            x_samples: int,
+            x_extra_left: float,
+            x_extra_right: float):
+    """
+    Generates PMF samples from the given set of functions
+    """
+    min_left_low, min_right_high = x_search_stop, x_search_start
+    min_left_high, min_right_low = x_search_start, x_search_stop
+
+    min_max_arr = []
+    for i, pmf_func in enumerate(pmf_funcs):
+        _min_left, _min_right, _maxima = get_pmf_func_min_max(pmf_func, x_search_start, x_search_stop)
+        min_max_arr.append((_min_left, _min_right, _maxima))
+
+        print(f"\nPMF for FUNCTION-{i + 1} -----------\n"
+              f" -> MINIMA LEFT: ({_min_left}, {pmf_func(_min_left)})\n"
+              f" -> MINIMA RIGHT: ({_min_right}, {pmf_func(_min_right)})\n"
+              f" -> MAXIMA: ({_maxima}, {pmf_func(_maxima)})\n")
+
+        min_left_low, min_right_high = min(min_left_low, _min_left), max(min_right_high, _min_right)
+        min_left_high, min_right_low = max(min_left_high, _min_left), min(min_right_low, _min_right)
+
+    if align_pmf_minimas and not align_broadest:
+        align_left, align_right = min_left_high, min_right_low
+    else:
+        align_left, align_right = min_left_low, min_right_high
+
+    x = np.linspace(align_left - x_extra_left, align_right + x_extra_right, x_samples)
+    pmf_arr = []
+
+    for i, pmf_func in enumerate(pmf_funcs):
+        if align_pmf_minimas:
+            # Scaling X to match minima's and scaling pmf with the same scale as x
+            # _min_left, _min_right, _max = min_max_arr[i]
+            # scale = (min_right_high - min_left_low) / (_min_right - _min_left)
+            # _mid = (_min_left + _min_right) / 2
+            # pmf = scale * pmf_func(((x - _mid) / scale) + _mid)
+            # pmf -= np.min(pmf)
+
+            align_range = align_right - align_left
+
+            _min_left, _min_right, _max = min_max_arr[i]
+            scale = align_range / (_min_right - _min_left)
+
+            _mid = (_min_left + _min_right) / 2
+            pmf = scale * pmf_func(((x - _mid) / scale) + _mid)
+            pmf -= np.min(pmf)
+        else:
+            ## Original PMF: without any x or pmf scale
+            pmf = pmf_func(x)
+            scale = 1
+        pmf_arr.append(pmf)
+
+    return x, pmf_arr, min_max_arr
 
 
 # Returns the minima coordinates (x, y) where x is in between (x_start, x_stop)
