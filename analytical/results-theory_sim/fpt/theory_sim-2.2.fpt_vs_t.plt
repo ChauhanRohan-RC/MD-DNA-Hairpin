@@ -63,7 +63,7 @@
 @timestamp rot 0
 @timestamp font 0
 @timestamp char size 1.000000
-@timestamp def "Wed Aug 28 16:54:16 2024"
+@timestamp def "Thu Sep 26 16:19:13 2024"
 @r0 off
 @link r0 to g0
 @r0 type above
@@ -142,20 +142,20 @@
 @    xaxis  label place normal
 @    xaxis  tick on
 @    xaxis  tick major 2
-@    xaxis  tick minor ticks 3
+@    xaxis  tick minor ticks 1
 @    xaxis  tick default 6
 @    xaxis  tick place rounded true
-@    xaxis  tick in
-@    xaxis  tick major size 1.000000
+@    xaxis  tick out
+@    xaxis  tick major size 0.520000
 @    xaxis  tick major color 1
-@    xaxis  tick major linewidth 1.0
+@    xaxis  tick major linewidth 2.0
 @    xaxis  tick major linestyle 1
 @    xaxis  tick major grid off
 @    xaxis  tick minor color 1
-@    xaxis  tick minor linewidth 1.0
+@    xaxis  tick minor linewidth 1.5
 @    xaxis  tick minor linestyle 1
 @    xaxis  tick minor grid off
-@    xaxis  tick minor size 0.500000
+@    xaxis  tick minor size 0.400000
 @    xaxis  ticklabel on
 @    xaxis  ticklabel format general
 @    xaxis  ticklabel prec 5
@@ -175,7 +175,7 @@
 @    xaxis  ticklabel char size 1.000000
 @    xaxis  ticklabel font 0
 @    xaxis  ticklabel color 1
-@    xaxis  tick place both
+@    xaxis  tick place normal
 @    xaxis  tick spec type none
 @    yaxis  on
 @    yaxis  type zero false
@@ -196,17 +196,17 @@
 @    yaxis  tick minor ticks 1
 @    yaxis  tick default 6
 @    yaxis  tick place rounded true
-@    yaxis  tick in
-@    yaxis  tick major size 1.000000
+@    yaxis  tick out
+@    yaxis  tick major size 0.520000
 @    yaxis  tick major color 1
-@    yaxis  tick major linewidth 1.0
+@    yaxis  tick major linewidth 2.0
 @    yaxis  tick major linestyle 1
 @    yaxis  tick major grid off
 @    yaxis  tick minor color 1
-@    yaxis  tick minor linewidth 1.0
+@    yaxis  tick minor linewidth 1.5
 @    yaxis  tick minor linestyle 1
 @    yaxis  tick minor grid off
-@    yaxis  tick minor size 0.500000
+@    yaxis  tick minor size 0.390000
 @    yaxis  ticklabel on
 @    yaxis  ticklabel format general
 @    yaxis  ticklabel prec 5
@@ -226,7 +226,7 @@
 @    yaxis  ticklabel char size 1.000000
 @    yaxis  ticklabel font 0
 @    yaxis  ticklabel color 1
-@    yaxis  tick place both
+@    yaxis  tick place normal
 @    yaxis  tick spec type none
 @    altxaxis  off
 @    altyaxis  off

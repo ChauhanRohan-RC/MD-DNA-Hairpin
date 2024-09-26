@@ -23,8 +23,8 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="1"
-     inkscape:cx="442.99999"
-     inkscape:cy="314.49999"
+     inkscape:cx="719.5"
+     inkscape:cy="340.5"
      inkscape:window-width="1920"
      inkscape:window-height="1041"
      inkscape:window-x="0"
@@ -464,7 +464,7 @@
     </g>
     <g
        inkscape:label=""
-       transform="rotate(-90,219.05078,139.97174)"
+       transform="rotate(-90,218.05078,140.97174)"
        id="g67">
       <g
          id="g11">
@@ -494,29 +494,31 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="361.2872"
-       y="623.33698"
+       y="627.33698"
        id="text67"><tspan
          sodipodi:role="line"
          id="tspan67"
          x="361.2872"
-         y="623.33698">Time (ns)</tspan></text>
+         y="627.33698">Time (ns)</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       x="748.2312"
-       y="624.38684"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;baseline-shift:baseline;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       x="758.59735"
+       y="625.93201"
        id="text67-4"><tspan
          sodipodi:role="line"
          id="tspan67-5"
-         x="748.2312"
-         y="624.38684">Probability Density (10<tspan
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';baseline-shift:super"
-   id="tspan10">-2</tspan>)</tspan></text>
+         x="758.59735"
+         y="625.93201">p(x)  [10<tspan
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';baseline-shift:baseline"
+   id="tspan10"><tspan
+   style="font-size:65%;baseline-shift:super"
+   id="tspan1">-2</tspan>]</tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.66666729px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="811.84045"
        y="430.59375"
        id="text69"><tspan
@@ -526,24 +528,24 @@
          y="430.59375">F</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="762.30591"
-       y="344.02734"
+       y="348.02734"
        id="text70"><tspan
          sodipodi:role="line"
          id="tspan70"
          x="762.30591"
-         y="344.02734">I</tspan></text>
+         y="348.02734">I</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:20px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';text-align:center;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        x="772.19592"
-       y="222.23828"
+       y="228.23828"
        id="text71"><tspan
          sodipodi:role="line"
          id="tspan71"
          x="772.19592"
-         y="222.23828">U</tspan></text>
+         y="228.23828">U</tspan></text>
     <path
        style="fill:#000000;fill-opacity:1;stroke:#ff4919;stroke-width:3.77952765;stroke-dasharray:11.33860252,11.33860252;stroke-dashoffset:0;stroke-opacity:1"
        d="M 827.56502,463.50287 H 112.97657"
