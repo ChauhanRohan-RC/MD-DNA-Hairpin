@@ -24,7 +24,7 @@
      inkscape:deskcolor="#d1d1d1"
      showguides="true"
      inkscape:zoom="0.95465686"
-     inkscape:cx="413.76123"
+     inkscape:cx="414.28498"
      inkscape:cy="390.19256"
      inkscape:window-width="1920"
      inkscape:window-height="1041"
@@ -429,14 +429,14 @@
              rx="12.614841"
              ry="16.823414" /></g><text
            xml:space="preserve"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.66666717px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0.416342"
-           x="373.43259"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:26.6667px;font-family:'Product Sans';-inkscape-font-specification:'Product Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0.416342"
+           x="339.43259"
            y="808.59387"
            id="text70"><tspan
              sodipodi:role="line"
              id="tspan70"
-             x="373.43259"
-             y="808.59387">Extension (Å)</tspan></text><g
+             x="339.43259"
+             y="808.59387">Extension (x) [Å]</tspan></text><g
            id="g2"><g
              id="g5"
              transform="rotate(-90,-142.18957,489.54179)"><text

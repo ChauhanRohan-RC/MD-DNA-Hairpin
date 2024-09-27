@@ -1,4 +1,9 @@
 ## Mean First Passage Time (FIT-2.2) --------------
+# Initial Time: 6.31e-9 s
+# Time taken to reach Intermidiate state: 7.4058334e-09 s
+# ----- Absolute (including the time taken to reach I state) -----------
 -> Simulation: 1.612731456854097e-08 s
 -> Theory: 1.5690598715968458e-08 s
-#-----------------------------------------
+#------ Relative (excluding the time taken to reach I state) -----------
+-> Simulation: 8.721481169e-09 s
+-> Theory: 8.284765316e-09 s
