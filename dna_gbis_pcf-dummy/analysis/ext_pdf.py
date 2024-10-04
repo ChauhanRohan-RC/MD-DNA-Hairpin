@@ -20,7 +20,7 @@ COMMENT_TOKEN = "#"
 
 ## Input ---------------------------------------------------
 frame_vs_ext_file = "dist_vs_frame.dat"
-frame_step_fs = 2 * 100  # time (in fs) between frames = time_step (fs) * dcd_freq. -1 for NOT_DEFINED
+frame_step_fs = 1 * 100  # time (in fs) between frames = time_step (fs) * dcd_freq. -1 for NOT_DEFINED
 
 # Frame Range (optional). NOTE: frame_index = time_fs / frame_step_fs
 frame_index_start = -1  # Inclusive [-1 for no start bound]
